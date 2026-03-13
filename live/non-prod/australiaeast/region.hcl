@@ -1,3 +1,4 @@
 locals {
-  location = "australiaeast"
+  location       = "australiaeast"
+  location_short = "aue"
 }
