@@ -55,6 +55,18 @@ live/
 
 1.  **Isolated State Files:** Every leaf `terragrunt.hcl` file generates its own isolated Terraform state file in the Azure Storage backend based on its path (e.g., `non-prod/australiaeast/dev/status-page-updater/terraform.tfstate`). This physically limits the "blast radius"—a destructive command run in `dev` cannot corrupt the `prod` state file.
 2.  **DRY Variable Inheritance:** Leaf configurations use Terragrunt's `read_terragrunt_config()` function to dynamically pull values from the `.hcl` files above them in the directory tree. This means `location` and `environment` never have to be hardcoded in the child modules, completely eliminating repetition and preventing copy-paste errors.
+3.  **Platform vs. Application Separation (Landlord/Tenant Model):** We strictly separate the underlying platform from the applications that run on it.
+    *   **The Platform (`env-platform`):** Acts as the "Landlord." It is deployed once per environment/region and provisions the shared foundation: the Resource Group, the Log Analytics Workspace, and the Container App Environment (the server cluster).
+    *   **The Application (`status-page-updater`):** Acts as the "Tenant." It represents a single microservice. It uses a Terragrunt `dependency` block to ask the platform for its IDs, and then deploys a specific container image into that shared cluster. 
+    
+    *Example:* If you need to add a second microservice (e.g., `user-api`), you simply add a new application folder next to the others. It will automatically deploy into the existing `env-platform`, significantly reducing Azure costs and simplifying architecture:
+
+    ```text
+    live/non-prod/australiaeast/dev/
+    ├── env-platform/            <-- (Landlord: Provisions cluster once)
+    ├── status-page-updater/     <-- (Tenant 1: Deploys into cluster)
+    └── user-api/                <-- (Tenant 2: NEW! Deploys into cluster)
+    ```
 
 ---
 

@@ -1,8 +1,3 @@
-variable "location" {
-  description = "Azure region for all resources."
-  type        = string
-}
-
 variable "environment" {
   description = "Deployment environment name, for example stg or prod."
   type        = string
@@ -14,24 +9,13 @@ variable "name" {
 }
 
 variable "resource_group_name" {
-  description = "Resource group name."
+  description = "Resource group name where the Container App Environment lives."
   type        = string
 }
 
-variable "container_app_environment_name" {
-  description = "Container Apps environment name."
+variable "container_app_environment_id" {
+  description = "The ID of the Container App Environment to deploy into."
   type        = string
-}
-
-variable "log_analytics_workspace_name" {
-  description = "Log Analytics workspace name."
-  type        = string
-}
-
-variable "log_analytics_retention_in_days" {
-  description = "Retention period in days for the Log Analytics workspace."
-  type        = number
-  default     = 4
 }
 
 variable "container_app_name" {
@@ -42,7 +26,7 @@ variable "container_app_name" {
 variable "container_name" {
   description = "Container name inside the app."
   type        = string
-  default     = "status-page-updater"
+  default     = "app"
 }
 
 variable "container_image" {

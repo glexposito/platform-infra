@@ -6,7 +6,8 @@ This repository implements the [Gruntwork Terragrunt Reference Architecture](doc
 
 ## Architecture & Layout
 
-- `modules/aca-status-page-updater`: Reusable Azure Container Apps Terraform module.
+- `modules/aca-environment`: Reusable Terraform module for the shared foundation (Resource Group, Log Analytics, Container App Environment).
+- `modules/aca-app`: Reusable Terraform module for deploying specific microservices into an existing `aca-environment`.
 - `live/`: The "Live" infrastructure configurations, organized by hierarchy:
 
 ```text
