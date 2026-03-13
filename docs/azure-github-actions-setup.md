@@ -12,9 +12,9 @@ This layout follows a common Terragrunt split:
 In this repo:
 
 - `modules/aca-app`: reusable Azure Container Apps module
-- `live/dev/status-page-updater`: dev deployment
-- `live/stg/status-page-updater`: staging deployment
-- `live/prod/status-page-updater`: production deployment
+- `live/dev/myapp`: dev deployment
+- `live/stg/myapp`: staging deployment
+- `live/prod/myapp`: production deployment
 
 Azure resource names follow this pattern:
 
@@ -57,9 +57,9 @@ Terraform state is stored in Azure Storage using the `azurerm` backend from the 
 
 Each environment gets a separate state key based on the stack path:
 
-- `live/dev/status-page-updater/terraform.tfstate`
-- `live/stg/status-page-updater/terraform.tfstate`
-- `live/prod/status-page-updater/terraform.tfstate`
+- `live/dev/myapp/terraform.tfstate`
+- `live/stg/myapp/terraform.tfstate`
+- `live/prod/myapp/terraform.tfstate`
 
 The backend values come from:
 
@@ -281,7 +281,7 @@ export TG_STATE_CONTAINER="tfstate"
 export MYAPP_IMAGE="ghcr.io/example/myapp:dev"
 export STATUSPAGE_API_KEY="replace-me"
 
-cd live/dev/status-page-updater
+cd live/dev/myapp
 terragrunt init
 terragrunt plan
 ```

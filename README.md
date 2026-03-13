@@ -64,7 +64,7 @@ To run Terragrunt locally, you need the following Azure authentication and state
 Navigate to the specific leaf directory of the environment/region you wish to deploy:
 
 ```bash
-cd live/non-prod/australiaeast/dev/status-page-updater
+cd live/non-prod/australiaeast/dev/myapp
 terragrunt init
 terragrunt plan
 terragrunt apply

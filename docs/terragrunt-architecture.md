@@ -18,7 +18,7 @@ live/
 *   **Subscription (`live/non-prod/`, `live/prod/`):** Represents the Azure Subscription boundary. This provides the highest level of isolation for security and billing. Contains a `subscription.hcl` file.
 *   **Region (`australiaeast/`):** Represents the physical Azure region where resources are deployed. Contains a `region.hcl` file.
 *   **Environment (`dev/`, `stg/`, `prod/`):** The logical deployment stage. Contains an `env.hcl` file.
-*   **Service (`status-page-updater/`):** The actual Terragrunt configuration (`terragrunt.hcl`) that calls a Terraform module to deploy a specific stack or application. The folder name is still `status-page-updater` until the Terraform state is migrated.
+*   **Service (`myapp/`):** The actual Terragrunt configuration (`terragrunt.hcl`) that calls a Terraform module to deploy a specific stack or application.
 
 ### Example Layout
 
@@ -30,11 +30,11 @@ live/
 │       ├── region.hcl           # Defines location = "australiaeast"
 │       ├── dev/
 │       │   ├── env.hcl          # Defines environment = "dev"
-│       │   └── status-page-updater/
+│       │   └── myapp/
 │       │       └── terragrunt.hcl
 │       └── stg/
 │           ├── env.hcl          # Defines environment = "stg"
-│           └── status-page-updater/
+│           └── myapp/
 │               └── terragrunt.hcl
 └── prod/
     ├── subscription.hcl         # Defines subscription_name = "prod"
@@ -42,18 +42,18 @@ live/
     │   ├── region.hcl           # Defines location = "australiaeast"
     │   └── prod/
     │       ├── env.hcl          # Defines environment = "prod"
-    │       └── status-page-updater/
+    │       └── myapp/
     │           └── terragrunt.hcl
     └── southeastasia/
         ├── region.hcl           # Defines location = "southeastasia"
         └── prod/
             ├── env.hcl          # Defines environment = "prod"
-            └── status-page-updater/
+            └── myapp/
                 └── terragrunt.hcl
 
 ## How It Works
 
-1.  **Isolated State Files:** Every leaf `terragrunt.hcl` file generates its own isolated Terraform state file in the Azure Storage backend based on its path (e.g., `non-prod/australiaeast/dev/status-page-updater/terraform.tfstate`). This physically limits the "blast radius"—a destructive command run in `dev` cannot corrupt the `prod` state file.
+1.  **Isolated State Files:** Every leaf `terragrunt.hcl` file generates its own isolated Terraform state file in the Azure Storage backend based on its path (e.g., `non-prod/australiaeast/dev/myapp/terraform.tfstate`). This physically limits the "blast radius"—a destructive command run in `dev` cannot corrupt the `prod` state file.
 2.  **DRY Variable Inheritance:** Leaf configurations use Terragrunt's `read_terragrunt_config()` function to dynamically pull values from the `.hcl` files above them in the directory tree. This means `location` and `environment` never have to be hardcoded in the child modules, completely eliminating repetition and preventing copy-paste errors.
 3.  **Platform vs. Application Separation (Landlord/Tenant Model):** We strictly separate the underlying platform from the applications that run on it.
     *   **The Platform (`env-platform`):** Acts as the "Landlord." It is deployed once per environment/region and provisions the shared foundation: the Resource Group, the Log Analytics Workspace, and the Container App Environment (the server cluster).
@@ -64,7 +64,7 @@ live/
     ```text
     live/non-prod/australiaeast/dev/
     ├── env-platform/            <-- (Landlord: Provisions cluster once)
-    ├── status-page-updater/     <-- (Tenant 1: myapp deploys into cluster)
+    ├── myapp/                   <-- (Tenant 1: myapp deploys into cluster)
     └── user-api/                <-- (Tenant 2: NEW! Deploys into cluster)
     ```
 
@@ -106,10 +106,10 @@ locals {
 ```
 
 **Step 4: Copy the service configuration.**
-Copy the existing `status-page-updater` folder from the old region to the new region.
+Copy the existing `myapp` folder from the old region to the new region.
 
 ```bash
-cp -r live/prod/australiaeast/prod/status-page-updater live/prod/westeurope/prod/
+cp -r live/prod/australiaeast/prod/myapp live/prod/westeurope/prod/
 ```
 
 **Step 5: Ensure DRY Config is Intact.**
@@ -130,7 +130,7 @@ locals {
 Navigate to the new directory and apply. Terragrunt will automatically handle creating a brand new isolated state file for this Singapore deployment.
 
 ```bash
-cd live/prod/southeastasia/prod/status-page-updater
+cd live/prod/southeastasia/prod/myapp
 terragrunt apply
 ```
 
@@ -148,7 +148,7 @@ To safely decommission an environment, follow this two-step process:
 Before removing any code, navigate into the specific leaf directory of the environment you want to remove and instruct Terragrunt to destroy the physical resources.
 
 ```bash
-cd live/prod/southeastasia/prod/status-page-updater
+cd live/prod/southeastasia/prod/myapp
 terragrunt destroy
 ```
 *Terragrunt will read the state file, determine exactly what resources exist in Azure, and safely delete them.*
