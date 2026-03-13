@@ -15,6 +15,18 @@ Current log retention:
 - `stg`: 4 days
 - `prod`: 30 days
 
+Azure naming convention used by the stacks:
+
+- resource group: `rg-<service>-<env>-<region>`
+- container apps environment: `cae-<service>-<env>-<region>`
+- log analytics workspace: `law-<service>-<env>-<region>`
+- container app: `ca-<service>-<env>-<region>`
+
+Current service token and region code:
+
+- service: `spu` for status page updater
+- region: `aue` for Australia East
+
 ## Required environment variables
 
 - `AZURE_SUBSCRIPTION_ID`

@@ -1,5 +1,5 @@
 include "root" {
-  path = find_in_parent_folders()
+  path = find_in_parent_folders("root.hcl")
 }
 
 terraform {
@@ -9,12 +9,12 @@ terraform {
 inputs = {
   location                        = get_env("AZURE_LOCATION", "australiaeast")
   environment                     = "dev"
-  name                            = "status-page-updater"
-  resource_group_name             = "rg-status-page-updater-dev"
-  container_app_environment_name  = "cae-status-page-updater-dev"
-  log_analytics_workspace_name    = "law-status-page-updater-dev"
+  name                            = "spu"
+  resource_group_name             = "rg-spu-dev-aue"
+  container_app_environment_name  = "cae-spu-dev-aue"
+  log_analytics_workspace_name    = "law-spu-dev-aue"
   log_analytics_retention_in_days = 4
-  container_app_name              = "ca-status-page-updater-dev"
+  container_app_name              = "ca-spu-dev-aue"
   container_image                 = get_env("STATUS_PAGE_UPDATER_IMAGE", "ghcr.io/example/status-page-updater:dev")
   registry_server                 = trimspace(get_env("STATUS_PAGE_UPDATER_REGISTRY_SERVER", "")) == "" ? null : trimspace(get_env("STATUS_PAGE_UPDATER_REGISTRY_SERVER", ""))
   acr_id                          = trimspace(get_env("STATUS_PAGE_UPDATER_ACR_ID", "")) == "" ? null : trimspace(get_env("STATUS_PAGE_UPDATER_ACR_ID", ""))

@@ -16,6 +16,18 @@ In this repo:
 - `live/stg/status-page-updater`: staging deployment
 - `live/prod/status-page-updater`: production deployment
 
+Azure resource names follow this pattern:
+
+- `rg-<service>-<env>-<region>`
+- `cae-<service>-<env>-<region>`
+- `law-<service>-<env>-<region>`
+- `ca-<service>-<env>-<region>`
+
+Current conventions in this repo:
+
+- service token: `spu`
+- region code: `aue`
+
 `live` is a standard Terragrunt convention. It means these stacks are the concrete deployments, not reusable building blocks.
 
 ## How Authentication Works
@@ -41,7 +53,7 @@ Official references:
 
 ## Terraform State
 
-Terraform state is stored in Azure Storage using the `azurerm` backend from the root [terragrunt.hcl](/home/guille/dev/aca-infra/terragrunt.hcl).
+Terraform state is stored in Azure Storage using the `azurerm` backend from the root [root.hcl](/home/guille/dev/aca-infra/root.hcl).
 
 Each environment gets a separate state key based on the stack path:
 
