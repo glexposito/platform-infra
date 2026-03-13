@@ -3,7 +3,7 @@ include "root" {
 }
 
 terraform {
-  source = "../../../modules/aca-status-page-updater"
+  source = "../../../../../modules/aca-status-page-updater"
 }
 
 inputs = {

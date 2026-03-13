@@ -61,15 +61,21 @@ jobs:
 
           ordered = []
           for env in allowed:
-            if env in parts and env not in ordered:
-              ordered.append(env)
+            if env in parts and not any(o['environment'] == env for o in ordered):
+              if env == 'prod':
+                ordered.append({'environment': 'prod', 'working_dir': 'live/prod/australiaeast/prod/status-page-updater'})
+              elif env == 'stg':
+                ordered.append({'environment': 'stg', 'working_dir': 'live/non-prod/australiaeast/stg/status-page-updater'})
+              else:
+                ordered.append({'environment': 'dev', 'working_dir': 'live/non-prod/australiaeast/dev/status-page-updater'})
 
-          if command == "apply" and "prod" in ordered and len(ordered) > 1:
+          if command == "apply" and any(o['environment'] == 'prod' for o in ordered) and len(ordered) > 1:
             print("Refusing to apply prod together with other environments.", file=sys.stderr)
             sys.exit(1)
 
+          display_names = [o['environment'] for o in ordered]
           print(f"matrix={json.dumps(ordered)}")
-          print(f"display={','.join(ordered)}")
+          print(f"display={','.join(display_names)}")
           PY
 
   plan:
@@ -78,17 +84,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        environment:
-          - dev
-          - stg
-          - prod
+        include:
+          - environment: dev
+            working_dir: live/non-prod/australiaeast/dev/status-page-updater
+          - environment: stg
+            working_dir: live/non-prod/australiaeast/stg/status-page-updater
+          - environment: prod
+            working_dir: live/prod/australiaeast/prod/status-page-updater
     concurrency:
       group: status-page-updater-plan-${{ matrix.environment }}
       cancel-in-progress: true
     defaults:
       run:
         shell: bash
-        working-directory: live/${{ matrix.environment }}/status-page-updater
+        working-directory: ${{ matrix.working_dir }}
     env:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -139,7 +148,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        environment: ${{ fromJson(needs.resolve-dispatch-targets.outputs.matrix) }}
+        include: ${{ fromJson(needs.resolve-dispatch-targets.outputs.matrix) }}
     environment: ${{ matrix.environment }}
     concurrency:
       group: status-page-updater-deploy-${{ matrix.environment }}
@@ -147,7 +156,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: live/${{ matrix.environment }}/status-page-updater
+        working-directory: ${{ matrix.working_dir }}
     env:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
