@@ -1,3 +1,7 @@
+provider "azurerm" {
+  features {}
+}
+
 locals {
   default_tags = {
     app         = var.name
@@ -5,7 +9,7 @@ locals {
     managed_by  = "terraform"
   }
 
-  tags = merge(local.default_tags, var.tags)
+  tags = merge(var.tags, local.default_tags)
 }
 
 resource "azurerm_resource_group" "this" {

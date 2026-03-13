@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       targets:
-        description: "Comma-separated environments: dev, stg, prod"
+        description: "Comma-separated environments: dev, stg, prod-aue, prod-sea"
         required: true
         type: string
         default: "dev"
@@ -47,7 +47,7 @@ jobs:
 
           raw = os.environ["INPUT_TARGETS"]
           command = os.environ["INPUT_COMMAND"]
-          allowed = ["dev", "stg", "prod"]
+          allowed = ["dev", "stg", "prod-aue", "prod-sea"]
 
           parts = [p.strip() for p in raw.split(",") if p.strip()]
           if not parts:
@@ -62,14 +62,16 @@ jobs:
           ordered = []
           for env in allowed:
             if env in parts and not any(o['environment'] == env for o in ordered):
-              if env == 'prod':
-                ordered.append({'environment': 'prod', 'working_dir': 'live/prod/australiaeast/prod/status-page-updater'})
+              if env == 'prod-aue':
+                ordered.append({'environment': 'prod-aue', 'working_dir': 'live/prod/australiaeast/prod/status-page-updater'})
+              elif env == 'prod-sea':
+                ordered.append({'environment': 'prod-sea', 'working_dir': 'live/prod/southeastasia/prod/status-page-updater'})
               elif env == 'stg':
                 ordered.append({'environment': 'stg', 'working_dir': 'live/non-prod/australiaeast/stg/status-page-updater'})
               else:
                 ordered.append({'environment': 'dev', 'working_dir': 'live/non-prod/australiaeast/dev/status-page-updater'})
 
-          if command == "apply" and any(o['environment'] == 'prod' for o in ordered) and len(ordered) > 1:
+          if command == "apply" and any(o['environment'].startswith('prod') for o in ordered) and len(ordered) > 1:
             print("Refusing to apply prod together with other environments.", file=sys.stderr)
             sys.exit(1)
 
@@ -89,8 +91,10 @@ jobs:
             working_dir: live/non-prod/australiaeast/dev/status-page-updater
           - environment: stg
             working_dir: live/non-prod/australiaeast/stg/status-page-updater
-          - environment: prod
+          - environment: prod-aue
             working_dir: live/prod/australiaeast/prod/status-page-updater
+          - environment: prod-sea
+            working_dir: live/prod/southeastasia/prod/status-page-updater
     concurrency:
       group: status-page-updater-plan-${{ matrix.environment }}
       cancel-in-progress: true
