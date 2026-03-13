@@ -5,7 +5,8 @@ include "root" {
 locals {
   region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   env_vars    = read_terragrunt_config(find_in_parent_folders("env.hcl"))
-  env          = local.env_vars.locals.environment
+  env         = local.env_vars.locals.environment
+  name        = "spu"
 }
 
 terraform {
@@ -26,8 +27,8 @@ inputs = {
   resource_group_name            = dependency.platform.outputs.resource_group_name
   location                       = local.region_vars.locals.location
   environment                    = local.env
-  name                           = "spu"
-  container_app_name             = "ca-spu-${local.env}-${local.region_vars.locals.location_short}"
+  name                           = local.name
+  container_app_name             = "ca-${local.name}-${local.env}-${local.region_vars.locals.location_short}"
   container_image                 = coalesce(get_env("STATUS_PAGE_UPDATER_IMAGE", ""), "ghcr.io/example/status-page-updater:${local.env}")
   registry_server                = trimspace(get_env("STATUS_PAGE_UPDATER_REGISTRY_SERVER", "")) == "" ? null : trimspace(get_env("STATUS_PAGE_UPDATER_REGISTRY_SERVER", ""))
   acr_id                         = trimspace(get_env("STATUS_PAGE_UPDATER_ACR_ID", "")) == "" ? null : trimspace(get_env("STATUS_PAGE_UPDATER_ACR_ID", ""))
