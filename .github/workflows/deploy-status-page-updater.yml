@@ -1,0 +1,191 @@
+name: Deploy Status Page Updater
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/deploy-status-page-updater.yml"
+      - "terragrunt.hcl"
+      - "modules/**"
+      - "live/**"
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: "Comma-separated environments: dev, stg, prod"
+        required: true
+        type: string
+        default: "dev"
+      command:
+        description: "Terragrunt command"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  resolve-dispatch-targets:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+      display: ${{ steps.resolve.outputs.display }}
+    steps:
+      - name: Resolve targets
+        id: resolve
+        env:
+          INPUT_TARGETS: ${{ inputs.targets }}
+          INPUT_COMMAND: ${{ inputs.command }}
+        run: |
+          python3 <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import os
+          import sys
+
+          raw = os.environ["INPUT_TARGETS"]
+          command = os.environ["INPUT_COMMAND"]
+          allowed = ["dev", "stg", "prod"]
+
+          parts = [p.strip() for p in raw.split(",") if p.strip()]
+          if not parts:
+            print("No environments provided.", file=sys.stderr)
+            sys.exit(1)
+
+          invalid = [p for p in parts if p not in allowed]
+          if invalid:
+            print(f"Invalid environments: {', '.join(invalid)}", file=sys.stderr)
+            sys.exit(1)
+
+          ordered = []
+          for env in allowed:
+            if env in parts and env not in ordered:
+              ordered.append(env)
+
+          if command == "apply" and "prod" in ordered and len(ordered) > 1:
+            print("Refusing to apply prod together with other environments.", file=sys.stderr)
+            sys.exit(1)
+
+          print(f"matrix={json.dumps(ordered)}")
+          print(f"display={','.join(ordered)}")
+          PY
+
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - dev
+          - stg
+          - prod
+    concurrency:
+      group: status-page-updater-plan-${{ matrix.environment }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        shell: bash
+        working-directory: live/${{ matrix.environment }}/status-page-updater
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      TG_STATE_RESOURCE_GROUP: ${{ secrets.TG_STATE_RESOURCE_GROUP }}
+      TG_STATE_STORAGE_ACCOUNT: ${{ secrets.TG_STATE_STORAGE_ACCOUNT }}
+      TG_STATE_CONTAINER: ${{ secrets.TG_STATE_CONTAINER }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION || 'australiaeast' }}
+      STATUS_PAGE_UPDATER_IMAGE: ${{ vars.STATUS_PAGE_UPDATER_IMAGE }}
+      STATUS_PAGE_UPDATER_REGISTRY_SERVER: ${{ vars.STATUS_PAGE_UPDATER_REGISTRY_SERVER }}
+      STATUS_PAGE_UPDATER_ACR_ID: ${{ vars.STATUS_PAGE_UPDATER_ACR_ID }}
+      STATUSPAGE_API_KEY: ${{ secrets.STATUSPAGE_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION || '1.6.6' }}
+
+      - name: Setup Terragrunt
+        uses: gruntwork-io/terragrunt-action@v3
+        with:
+          tg_version: ${{ vars.TERRAGRUNT_VERSION || '0.82.2' }}
+          tf_path: terraform
+
+      - name: Terragrunt init
+        run: terragrunt init
+
+      - name: Terragrunt plan
+        run: terragrunt plan -no-color
+
+  deploy:
+    if: github.event_name == 'workflow_dispatch'
+    needs: resolve-dispatch-targets
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: ${{ fromJson(needs.resolve-dispatch-targets.outputs.matrix) }}
+    environment: ${{ matrix.environment }}
+    concurrency:
+      group: status-page-updater-deploy-${{ matrix.environment }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash
+        working-directory: live/${{ matrix.environment }}/status-page-updater
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      TG_STATE_RESOURCE_GROUP: ${{ secrets.TG_STATE_RESOURCE_GROUP }}
+      TG_STATE_STORAGE_ACCOUNT: ${{ secrets.TG_STATE_STORAGE_ACCOUNT }}
+      TG_STATE_CONTAINER: ${{ secrets.TG_STATE_CONTAINER }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION || 'australiaeast' }}
+      STATUS_PAGE_UPDATER_IMAGE: ${{ vars.STATUS_PAGE_UPDATER_IMAGE }}
+      STATUS_PAGE_UPDATER_REGISTRY_SERVER: ${{ vars.STATUS_PAGE_UPDATER_REGISTRY_SERVER }}
+      STATUS_PAGE_UPDATER_ACR_ID: ${{ vars.STATUS_PAGE_UPDATER_ACR_ID }}
+      STATUSPAGE_API_KEY: ${{ secrets.STATUSPAGE_API_KEY }}
+    steps:
+      - name: Show deployment targets
+        run: echo "Running ${{ inputs.command }} for ${{ needs.resolve-dispatch-targets.outputs.display }}"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION || '1.6.6' }}
+
+      - name: Setup Terragrunt
+        uses: gruntwork-io/terragrunt-action@v3
+        with:
+          tg_version: ${{ vars.TERRAGRUNT_VERSION || '0.82.2' }}
+          tf_path: terraform
+
+      - name: Terragrunt init
+        run: terragrunt init
+
+      - name: Terragrunt plan
+        run: terragrunt plan -no-color
+
+      - name: Terragrunt apply
+        if: inputs.command == 'apply'
+        run: terragrunt apply -auto-approve -no-color
