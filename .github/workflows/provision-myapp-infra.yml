@@ -127,6 +127,9 @@ jobs:
       TG_STATE_STORAGE_ACCOUNT: ${{ vars.TG_STATE_STORAGE_ACCOUNT }}
       TG_STATE_CONTAINER: ${{ vars.TG_STATE_CONTAINER }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
       - name: Run Terragrunt
         uses: ./.github/actions/terragrunt-stack
         with:
@@ -171,6 +174,9 @@ jobs:
       MYAPP_ACR_ID: ${{ vars.MYAPP_ACR_ID }}
       STATUSPAGE_API_KEY: ${{ secrets.STATUSPAGE_API_KEY }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
       - name: Run Terragrunt
         uses: ./.github/actions/terragrunt-stack
         with:
@@ -205,6 +211,9 @@ jobs:
       TG_STATE_STORAGE_ACCOUNT: ${{ vars.TG_STATE_STORAGE_ACCOUNT }}
       TG_STATE_CONTAINER: ${{ vars.TG_STATE_CONTAINER }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
       - name: Show deployment targets
         run: echo "Running ${{ inputs.command }} for ${{ needs.prepare-deployment.outputs.display }}"
 
@@ -249,6 +258,9 @@ jobs:
       MYAPP_ACR_ID: ${{ vars.MYAPP_ACR_ID }}
       STATUSPAGE_API_KEY: ${{ secrets.STATUSPAGE_API_KEY }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
       - name: Show deployment targets
         run: echo "Running ${{ inputs.command }} for ${{ needs.prepare-deployment.outputs.display }}"
 
