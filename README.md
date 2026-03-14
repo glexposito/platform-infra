@@ -12,6 +12,9 @@ This repository implements the [Gruntwork Terragrunt Reference Architecture](doc
 
 ```text
 live/
+├── _shared/
+│   ├── env-platform.hcl
+│   └── myapp.hcl
 ├── non-prod/
 │   └── australiaeast/
 │       ├── dev/
@@ -35,12 +38,31 @@ For detailed information on how to work with this architecture, see the followin
 
 Azure naming conventions are generated dynamically based on the inherited folder structure:
 
-- Resource Group: `rg-<service>-<env>-<region>`
-- Container Apps Environment: `cae-<service>-<env>-<region>`
-- Log Analytics Workspace: `law-<service>-<env>-<region>`
+- Platform Resource Group: `rg-<service>-platform-<env>-<region>`
+- Container Apps Environment: `cae-<service>-platform-<env>-<region>`
+- Log Analytics Workspace: `law-<service>-platform-<env>-<region>`
 - Container App: `ca-<service>-<env>-<region>`
 
 *Current service token (`myapp`) and regions (`aue` for Australia East, `sea` for Southeast Asia).*
+
+## Shared Terragrunt Config
+
+Common stack logic lives in:
+
+- `live/_shared/env-platform.hcl`
+- `live/_shared/myapp.hcl`
+
+Each environment-specific leaf file stays small and includes the shared config. The shared files still resolve the correct region and environment by using `get_original_terragrunt_dir()`, which points to the actual leaf stack directory Terragrunt was invoked for. From that real directory:
+
+- `../../region.hcl` resolves the region config
+- `../env.hcl` resolves the environment config
+
+So when Terragrunt runs from `live/non-prod/australiaeast/dev/myapp`, the shared config reads:
+
+- `live/non-prod/australiaeast/region.hcl`
+- `live/non-prod/australiaeast/dev/env.hcl`
+
+This keeps the repo DRY without losing per-environment behavior.
 
 ## Required Environment Variables
 
@@ -61,20 +83,20 @@ To run Terragrunt locally, you need the following Azure authentication and state
 
 ## Example Usage
 
-Navigate to the specific leaf directory of the environment/region you wish to deploy:
+For full environment deployment, run from the environment root so Terragrunt can apply `env-platform` before `myapp`:
 
 ```bash
-cd live/non-prod/australiaeast/dev/myapp
-terragrunt init
-terragrunt plan
-terragrunt apply
+cd live/non-prod/australiaeast/dev
+terragrunt run --all --non-interactive init
+terragrunt run --all --non-interactive plan -- -no-color
+terragrunt run --all --non-interactive apply -- -auto-approve -no-color
 ```
 
 ## GitHub Actions CI/CD
 
 The workflow is located in [`.github/workflows/provision-myapp-infra.yml`](.github/workflows/provision-myapp-infra.yml).
 
-- **Pull Requests**: Automatically runs `terragrunt plan` against all defined environments.
+- **Pull Requests**: Automatically runs `terragrunt run --all plan` from each environment root.
 - **Manual Dispatch**: Allows applying changes to specific environments. Supports comma-separated targets such as `dev,stg`. Applying to multiple `prod-*` targets simultaneously is intentionally restricted to prevent cascading failures.
 
 ### Required GitHub Secrets
@@ -106,3 +128,5 @@ The workflow is located in [`.github/workflows/provision-myapp-infra.yml`](.gith
 2. Add approval rules for the `prod-*` environments.
 3. Configure Azure federated credentials to trust the repo and those specific environments.
 4. Set the workload-specific variables (`STATUSPAGE_API_KEY`, image tags) as Environment Secrets/Variables.
+
+If `STATUSPAGE_API_KEY` is unset, the app config omits that secret entirely rather than sending an empty secret to Azure Container Apps.

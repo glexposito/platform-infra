@@ -281,9 +281,9 @@ export TG_STATE_CONTAINER="tfstate"
 export MYAPP_IMAGE="ghcr.io/example/myapp:dev"
 export STATUSPAGE_API_KEY="replace-me"
 
-cd live/dev/myapp
-terragrunt init
-terragrunt plan
+cd live/non-prod/australiaeast/dev
+terragrunt run --all --non-interactive init
+terragrunt run --all --non-interactive plan -- -no-color
 ```
 
 If local `plan` works, test GitHub Actions against `dev` first.
@@ -294,10 +294,11 @@ Manual dispatch supports:
 
 - `targets=dev`
 - `targets=stg`
-- `targets=prod`
+- `targets=prod-aue`
+- `targets=prod-sea`
 - `targets=dev,stg`
 
-The workflow intentionally rejects `apply` when `prod` is mixed with other environments.
+The workflow intentionally rejects `apply` when a `prod-*` target is mixed with other environments.
 
 ## Logging And Cost
 
@@ -324,4 +325,5 @@ Relevant references:
 
 - GitHub Actions runners are ephemeral, so `terragrunt init` must run on every workflow execution.
 - `init` does not recreate Azure resources. It initializes the backend, providers, and working directory for that run.
+- The workflow runs from the environment root and uses `terragrunt run --all --non-interactive ...` so `env-platform` is applied before `myapp`.
 - If `acr_id` is used, the deployment identity needs enough permission to create the `AcrPull` role assignment.
