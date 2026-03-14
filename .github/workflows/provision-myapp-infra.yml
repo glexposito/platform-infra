@@ -64,29 +64,13 @@ jobs:
           for env in allowed:
             if env in parts and not any(o['environment'] == env for o in ordered):
               if env == 'prod-aue':
-                ordered.append({
-                  'environment': 'prod-aue',
-                  'platform_working_dir': 'live/prod/australiaeast/prod/env-platform',
-                  'app_working_dir': 'live/prod/australiaeast/prod/myapp',
-                })
+                ordered.append({'environment': 'prod-aue', 'working_dir': 'live/prod/australiaeast/prod/myapp'})
               elif env == 'prod-sea':
-                ordered.append({
-                  'environment': 'prod-sea',
-                  'platform_working_dir': 'live/prod/southeastasia/prod/env-platform',
-                  'app_working_dir': 'live/prod/southeastasia/prod/myapp',
-                })
+                ordered.append({'environment': 'prod-sea', 'working_dir': 'live/prod/southeastasia/prod/myapp'})
               elif env == 'stg':
-                ordered.append({
-                  'environment': 'stg',
-                  'platform_working_dir': 'live/non-prod/australiaeast/stg/env-platform',
-                  'app_working_dir': 'live/non-prod/australiaeast/stg/myapp',
-                })
+                ordered.append({'environment': 'stg', 'working_dir': 'live/non-prod/australiaeast/stg/myapp'})
               else:
-                ordered.append({
-                  'environment': 'dev',
-                  'platform_working_dir': 'live/non-prod/australiaeast/dev/env-platform',
-                  'app_working_dir': 'live/non-prod/australiaeast/dev/myapp',
-                })
+                ordered.append({'environment': 'dev', 'working_dir': 'live/non-prod/australiaeast/dev/myapp'})
 
           if command == "apply" and any(o['environment'].startswith('prod') for o in ordered) and len(ordered) > 1:
             print("Refusing to apply prod together with other environments.", file=sys.stderr)
@@ -97,47 +81,7 @@ jobs:
           print(f"display={','.join(display_names)}")
           PY
 
-  plan-platform:
-    if: github.event_name == 'pull_request'
-    name: Plan Platform (${{ matrix.environment }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - environment: dev
-            working_dir: live/non-prod/australiaeast/dev/env-platform
-          - environment: stg
-            working_dir: live/non-prod/australiaeast/stg/env-platform
-          - environment: prod-aue
-            working_dir: live/prod/australiaeast/prod/env-platform
-          - environment: prod-sea
-            working_dir: live/prod/southeastasia/prod/env-platform
-    concurrency:
-      group: platform-plan-${{ matrix.environment }}
-      cancel-in-progress: true
-    env:
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      ARM_USE_OIDC: true
-      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      TG_STATE_RESOURCE_GROUP: ${{ vars.TG_STATE_RESOURCE_GROUP }}
-      TG_STATE_STORAGE_ACCOUNT: ${{ vars.TG_STATE_STORAGE_ACCOUNT }}
-      TG_STATE_CONTAINER: ${{ vars.TG_STATE_CONTAINER }}
-    steps:
-      - name: Run Terragrunt
-        uses: ./.github/actions/terragrunt-stack
-        with:
-          working-directory: ${{ matrix.working_dir }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          terraform-version: ${{ vars.TERRAFORM_VERSION || '1.14.7' }}
-          terragrunt-version: ${{ vars.TERRAGRUNT_VERSION || '0.99.4' }}
-
-  plan-app:
+  plan:
     if: github.event_name == 'pull_request'
     name: Plan My App (${{ matrix.environment }})
     runs-on: ubuntu-latest
@@ -156,6 +100,10 @@ jobs:
     concurrency:
       group: myapp-plan-${{ matrix.environment }}
       cancel-in-progress: true
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ matrix.working_dir }}
     env:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -166,64 +114,43 @@ jobs:
       TG_STATE_RESOURCE_GROUP: ${{ vars.TG_STATE_RESOURCE_GROUP }}
       TG_STATE_STORAGE_ACCOUNT: ${{ vars.TG_STATE_STORAGE_ACCOUNT }}
       TG_STATE_CONTAINER: ${{ vars.TG_STATE_CONTAINER }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION || 'australiaeast' }}
       MYAPP_IMAGE: ${{ vars.MYAPP_IMAGE }}
       MYAPP_REGISTRY_SERVER: ${{ vars.MYAPP_REGISTRY_SERVER }}
       MYAPP_ACR_ID: ${{ vars.MYAPP_ACR_ID }}
       STATUSPAGE_API_KEY: ${{ secrets.STATUSPAGE_API_KEY }}
     steps:
-      - name: Run Terragrunt
-        uses: ./.github/actions/terragrunt-stack
-        with:
-          working-directory: ${{ matrix.working_dir }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          terraform-version: ${{ vars.TERRAFORM_VERSION || '1.14.7' }}
-          terragrunt-version: ${{ vars.TERRAGRUNT_VERSION || '0.99.4' }}
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
 
-  deploy-platform:
+      - name: Azure login
+        uses: azure/login@v2.3.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4.0.0
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION || '1.14.7' }}
+
+      - name: Setup Terragrunt
+        uses: jdx/mise-action@v4.0.0
+        with:
+          version: 2026.3.9
+          tool_versions: |
+            terragrunt ${{ vars.TERRAGRUNT_VERSION || '0.99.4' }}
+
+      - name: Terragrunt init
+        run: terragrunt init
+
+      - name: Terragrunt plan
+        run: terragrunt plan -no-color
+
+  deploy:
     if: github.event_name == 'workflow_dispatch'
     needs: prepare-deployment
-    name: Deploy Platform (${{ matrix.environment }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJson(needs.prepare-deployment.outputs.matrix) }}
-    environment: ${{ matrix.environment }}
-    concurrency:
-      group: platform-deploy-${{ matrix.environment }}
-      cancel-in-progress: false
-    env:
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      ARM_USE_OIDC: true
-      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      TG_STATE_RESOURCE_GROUP: ${{ vars.TG_STATE_RESOURCE_GROUP }}
-      TG_STATE_STORAGE_ACCOUNT: ${{ vars.TG_STATE_STORAGE_ACCOUNT }}
-      TG_STATE_CONTAINER: ${{ vars.TG_STATE_CONTAINER }}
-    steps:
-      - name: Show deployment targets
-        run: echo "Running ${{ inputs.command }} for ${{ needs.prepare-deployment.outputs.display }}"
-
-      - name: Run Terragrunt
-        uses: ./.github/actions/terragrunt-stack
-        with:
-          working-directory: ${{ matrix.platform_working_dir }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          terraform-version: ${{ vars.TERRAFORM_VERSION || '1.14.7' }}
-          terragrunt-version: ${{ vars.TERRAGRUNT_VERSION || '0.99.4' }}
-          run-apply: ${{ inputs.command == 'apply' }}
-
-  deploy-app:
-    if: github.event_name == 'workflow_dispatch'
-    needs:
-      - prepare-deployment
-      - deploy-platform
     name: Deploy My App (${{ matrix.environment }})
     runs-on: ubuntu-latest
     strategy:
@@ -234,6 +161,10 @@ jobs:
     concurrency:
       group: myapp-deploy-${{ matrix.environment }}
       cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ matrix.working_dir }}
     env:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -244,21 +175,43 @@ jobs:
       TG_STATE_RESOURCE_GROUP: ${{ vars.TG_STATE_RESOURCE_GROUP }}
       TG_STATE_STORAGE_ACCOUNT: ${{ vars.TG_STATE_STORAGE_ACCOUNT }}
       TG_STATE_CONTAINER: ${{ vars.TG_STATE_CONTAINER }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION || 'australiaeast' }}
       MYAPP_IMAGE: ${{ vars.MYAPP_IMAGE }}
       MYAPP_REGISTRY_SERVER: ${{ vars.MYAPP_REGISTRY_SERVER }}
       MYAPP_ACR_ID: ${{ vars.MYAPP_ACR_ID }}
       STATUSPAGE_API_KEY: ${{ secrets.STATUSPAGE_API_KEY }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
       - name: Show deployment targets
         run: echo "Running ${{ inputs.command }} for ${{ needs.prepare-deployment.outputs.display }}"
 
-      - name: Run Terragrunt
-        uses: ./.github/actions/terragrunt-stack
+      - name: Azure login
+        uses: azure/login@v2.3.0
         with:
-          working-directory: ${{ matrix.app_working_dir }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          terraform-version: ${{ vars.TERRAFORM_VERSION || '1.14.7' }}
-          terragrunt-version: ${{ vars.TERRAGRUNT_VERSION || '0.99.4' }}
-          run-apply: ${{ inputs.command == 'apply' }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4.0.0
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION || '1.14.7' }}
+
+      - name: Setup Terragrunt
+        uses: jdx/mise-action@v4.0.0
+        with:
+          version: 2026.3.9
+          tool_versions: |
+            terragrunt ${{ vars.TERRAGRUNT_VERSION || '0.99.4' }}
+
+      - name: Terragrunt init
+        run: terragrunt init
+
+      - name: Terragrunt plan
+        run: terragrunt plan -no-color
+
+      - name: Terragrunt apply
+        if: inputs.command == 'apply'
+        run: terragrunt apply -auto-approve -no-color
