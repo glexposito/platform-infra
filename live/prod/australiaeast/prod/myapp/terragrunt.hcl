@@ -33,6 +33,7 @@ inputs = {
   environment                    = local.env
   name                           = local.name
   container_app_name             = "ca-${local.name}-${local.env}-${local.region_vars.locals.location_short}"
+  container_name                 = local.name
   container_image                 = coalesce(get_env("MYAPP_IMAGE", ""), "ghcr.io/example/myapp:${local.env}")
   registry_server                = trimspace(get_env("MYAPP_REGISTRY_SERVER", "")) == "" ? null : trimspace(get_env("MYAPP_REGISTRY_SERVER", ""))
   acr_id                         = trimspace(get_env("MYAPP_ACR_ID", "")) == "" ? null : trimspace(get_env("MYAPP_ACR_ID", ""))
