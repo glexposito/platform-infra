@@ -142,10 +142,10 @@ jobs:
             terragrunt ${{ vars.TERRAGRUNT_VERSION || '0.99.4' }}
 
       - name: Terragrunt init
-        run: terragrunt run --all init
+        run: terragrunt run --all --non-interactive init
 
       - name: Terragrunt plan
-        run: terragrunt run --all plan -- -no-color
+        run: terragrunt run --all --non-interactive plan -- -no-color
 
   deploy:
     if: github.event_name == 'workflow_dispatch'
@@ -205,11 +205,11 @@ jobs:
             terragrunt ${{ vars.TERRAGRUNT_VERSION || '0.99.4' }}
 
       - name: Terragrunt init
-        run: terragrunt run --all init
+        run: terragrunt run --all --non-interactive init
 
       - name: Terragrunt plan
-        run: terragrunt run --all plan -- -no-color
+        run: terragrunt run --all --non-interactive plan -- -no-color
 
       - name: Terragrunt apply
         if: inputs.command == 'apply'
-        run: terragrunt run --all apply -- -auto-approve -no-color
+        run: terragrunt run --all --non-interactive apply -- -auto-approve -no-color
