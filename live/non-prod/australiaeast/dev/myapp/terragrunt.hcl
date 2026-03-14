@@ -16,6 +16,7 @@ terraform {
 
 dependency "platform" {
   config_path = "../env-platform"
+  mock_outputs_allowed_terraform_commands = ["validate", "plan", "output"]
 
   mock_outputs = {
     container_app_environment_id = "/subscriptions/${local.subscription_id}/resourceGroups/mock-rg/providers/Microsoft.App/managedEnvironments/mock-cae"
