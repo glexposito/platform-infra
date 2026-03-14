@@ -12,9 +12,10 @@ This layout follows a common Terragrunt split:
 In this repo:
 
 - `modules/aca-app`: reusable Azure Container Apps module
-- `live/dev/myapp`: dev deployment
-- `live/stg/myapp`: staging deployment
-- `live/prod/myapp`: production deployment
+- `live/non-prod/australiaeast/dev`: dev deployment root
+- `live/non-prod/australiaeast/stg`: staging deployment root
+- `live/prod/australiaeast/prod`: production deployment root for Australia East
+- `live/prod/southeastasia/prod`: production deployment root for Southeast Asia
 
 Azure resource names follow this pattern:
 
@@ -274,7 +275,8 @@ Examples:
 
 - `repo:glexposito/aca-infra:environment:dev`
 - `repo:glexposito/aca-infra:environment:stg`
-- `repo:glexposito/aca-infra:environment:prod`
+- `repo:glexposito/aca-infra:environment:prod-aue`
+- `repo:glexposito/aca-infra:environment:prod-sea`
 
 Create one federated credential per environment.
 
@@ -300,7 +302,7 @@ az ad app federated-credential create \
   --parameters github-dev.json
 ```
 
-Repeat for `stg` and `prod`.
+Repeat for `stg`, `prod-aue`, and `prod-sea`.
 
 Microsoft Learn reference:
 
@@ -312,11 +314,12 @@ Create these GitHub environments:
 
 - `dev`
 - `stg`
-- `prod`
+- `prod-aue`
+- `prod-sea`
 
 Recommended:
 
-- require approvals for `prod`
+- require approvals for `prod-aue` and `prod-sea`
 - optionally require approvals for `stg`
 - keep `dev` open for fast iteration
 
@@ -327,24 +330,23 @@ Repository-level secrets:
 - `AZURE_CLIENT_ID`
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
+
+Repository-level variables:
+
 - `TG_STATE_RESOURCE_GROUP`
 - `TG_STATE_STORAGE_ACCOUNT`
 - `TG_STATE_CONTAINER`
-
-Environment-level secret:
-
-- `STATUSPAGE_API_KEY`
-
-Environment-level variables:
-
-- `AZURE_LOCATION`
 - `MYAPP_IMAGE`
 - `MYAPP_REGISTRY_SERVER` (optional)
 - `MYAPP_ACR_ID` (optional)
 - `TERRAFORM_VERSION` (optional)
 - `TERRAGRUNT_VERSION` (optional)
 
-Keep workload-specific values on the GitHub environment, not globally, so `dev`, `stg`, and `prod` can differ without changing the workflow.
+Environment-level secrets:
+
+- `STATUSPAGE_API_KEY`
+
+Important: the pull request `plan` job does not attach a GitHub `environment`, so it can only read repository-level `vars` and `secrets`. Keep `MYAPP_*`, backend settings, and Terraform/Terragrunt version pins at repository scope unless the workflow is changed to attach an environment during PR plans.
 
 ## Local Testing
 
@@ -388,14 +390,15 @@ This repo currently keeps:
 
 - `dev`: 30 days
 - `stg`: 30 days
-- `prod`: 30 days
+- `prod-aue`: 30 days
+- `prod-sea`: 30 days
 
 These are Log Analytics retention settings, not log volume caps.
 
 Cost is driven mostly by ingestion volume, so the biggest cost lever is keeping the application logs quiet:
 
 - avoid noisy heartbeat logs
-- avoid debug-level logs in `prod`
+- avoid debug-level logs in production
 - log errors and important lifecycle events
 
 Relevant references:
