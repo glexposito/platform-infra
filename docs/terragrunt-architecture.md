@@ -12,12 +12,10 @@ The `live/` directory is organized into the following hierarchy:
 
 ```text
 live/
-├── _shared/
-│   └── app.hcl
 ├── units/
 │   ├── app-env/terragrunt.hcl
 │   └── myapp/terragrunt.hcl
-└── [subscription] / [region] / [environment]
+└── [environment-group] / [region] / [environment]
 ```
 
 *   **Top-Level Environment Group (`live/non-prod/`, `live/prod/`):** Represents the highest isolation boundary in this repo. It contains a `backend.hcl` file with the Terraform state backend coordinates for that group.
@@ -29,8 +27,6 @@ live/
 
 ```text
 live/
-├── _shared/
-│   └── app.hcl                 # Shared app identity/config
 ├── units/
 │   ├── app-env/
 │   │   └── terragrunt.hcl      # Shared app environment unit wrapper

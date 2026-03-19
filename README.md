@@ -7,7 +7,7 @@ Terragrunt/Terraform scaffold for deploying a containerized personal app to Azur
 > It is intended for experimentation and learning in a disposable Azure account, not as a hardened production baseline.
 > Expect breaking refactors, manual resets, and destructive rebuilds while the structure is still being explored.
 
-This repository implements a Terragrunt layout inspired by the [Gruntwork Terragrunt Reference Architecture](docs/terragrunt-architecture.md), utilizing a strict hierarchical layout (`subscription/region/environment`) with explicit stack files and shared unit wrappers to maximize configuration reuse and limit blast radius.
+This repository implements a Terragrunt layout inspired by the [Gruntwork Terragrunt Reference Architecture](docs/terragrunt-architecture.md), utilizing a strict hierarchical layout (`environment-group/backend -> region -> environment`) with explicit stack files and shared unit wrappers to maximize configuration reuse and limit blast radius.
 
 ## Architecture & Layout
 
@@ -107,21 +107,21 @@ The workflow is located in [`.github/workflows/provision-myapp-infra.yml`](.gith
 ### Required GitHub Secrets
 
 - `AZURE_CLIENT_ID`
-- `AZURE_TENANT_ID`
-- `AZURE_SUBSCRIPTION_ID`
 
 > 💡 **Security Recommendation:** Currently, application secrets like `STATUSPAGE_API_KEY` are passed via GitHub Secrets. For enterprise production workloads, it is highly recommended to migrate these to **Azure Key Vault**. You can grant the Container App's Managed Identity `Key Vault Secrets User` access and reference the secret natively, keeping plain-text values entirely out of GitHub Actions and Terraform state files.
 
 ### Optional GitHub Variables
 
-- `TERRAFORM_VERSION`
-- `TERRAGRUNT_VERSION`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+
+Terraform and Terragrunt versions are pinned directly in the workflow file.
 
 ### Recommended GitHub Setup
 
 1. Create GitHub Environments named `dev` and `prod-aue`.
 2. Add approval rules for the production environment.
 3. Configure Azure federated credentials to trust the repo and those specific environments.
-4. Set the workload-specific secrets (`STATUSPAGE_API_KEY`) on the environments that need them. The PR `plan` job only sees repository-level `vars` and `secrets`, so keep shared version pins there unless the workflow is changed to attach GitHub environments during PR plans.
+4. Set the workload-specific secrets (`STATUSPAGE_API_KEY`) on the environments that need them.
 
 If `STATUSPAGE_API_KEY` is unset, the app config omits that secret entirely rather than sending an empty secret to Azure Container Apps.

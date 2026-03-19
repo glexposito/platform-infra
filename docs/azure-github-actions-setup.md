@@ -120,11 +120,17 @@ export ENV_NAME="dev"
 ./scripts/init-azure-oidc.sh
 ```
 
-The script prints the values to store as GitHub repository secrets:
+The script prints the values to store in GitHub configuration:
 
 - `AZURE_CLIENT_ID`
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
+
+Store them as:
+
+- repository secret: `AZURE_CLIENT_ID`
+- repository variable: `AZURE_TENANT_ID`
+- repository variable: `AZURE_SUBSCRIPTION_ID`
 
 Use the manual steps below if you want to create or scope each Azure object yourself instead of using the helper script.
 
@@ -309,19 +315,17 @@ Recommended:
 Repository-level secrets:
 
 - `AZURE_CLIENT_ID`
-- `AZURE_TENANT_ID`
-- `AZURE_SUBSCRIPTION_ID`
 
 Repository-level variables:
 
-- `TERRAFORM_VERSION` (optional)
-- `TERRAGRUNT_VERSION` (optional)
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
 
 Environment-level secrets:
 
 - `STATUSPAGE_API_KEY`
 
-Important: the pull request `plan` job does not attach a GitHub `environment`, so it can only read repository-level `vars` and `secrets`. Keep Terraform/Terragrunt version pins at repository scope unless the workflow is changed to attach an environment during PR plans.
+Terraform and Terragrunt versions are pinned directly in the workflow file.
 
 ## Local Testing
 
