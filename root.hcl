@@ -3,7 +3,7 @@ locals {
   subscription_id       = get_env("AZURE_SUBSCRIPTION_ID", "00000000-0000-0000-0000-000000000000")
   tenant_id             = get_env("AZURE_TENANT_ID", "00000000-0000-0000-0000-000000000000")
   state_resource_group  = try(local.backend_vars.locals.state_resource_group, "rg-aca-terraform-state")
-  state_storage_account = try(local.backend_vars.locals.state_storage_account, "acatfstate")
+  state_storage_account = try(local.backend_vars.locals.state_storage_account, "acainfratfstate01")
   state_container       = try(local.backend_vars.locals.state_container, "tfstate")
 }
 
