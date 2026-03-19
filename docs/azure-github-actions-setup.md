@@ -314,9 +314,6 @@ Repository-level secrets:
 
 Repository-level variables:
 
-- `MYAPP_IMAGE`
-- `MYAPP_REGISTRY_SERVER` (optional)
-- `MYAPP_ACR_ID` (optional)
 - `TERRAFORM_VERSION` (optional)
 - `TERRAGRUNT_VERSION` (optional)
 
@@ -324,7 +321,7 @@ Environment-level secrets:
 
 - `STATUSPAGE_API_KEY`
 
-Important: the pull request `plan` job does not attach a GitHub `environment`, so it can only read repository-level `vars` and `secrets`. Keep `MYAPP_*` and Terraform/Terragrunt version pins at repository scope unless the workflow is changed to attach an environment during PR plans.
+Important: the pull request `plan` job does not attach a GitHub `environment`, so it can only read repository-level `vars` and `secrets`. Keep Terraform/Terragrunt version pins at repository scope unless the workflow is changed to attach an environment during PR plans.
 
 ## Local Testing
 
@@ -337,7 +334,6 @@ az account set --subscription "<subscription-id>"
 export AZURE_SUBSCRIPTION_ID="<subscription-id>"
 export AZURE_TENANT_ID="<tenant-id>"
 
-export MYAPP_IMAGE="ghcr.io/example/myapp:dev"
 export STATUSPAGE_API_KEY="replace-me"
 
 cd live/non-prod/australiaeast/dev

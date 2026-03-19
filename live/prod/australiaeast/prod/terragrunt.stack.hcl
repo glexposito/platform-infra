@@ -23,9 +23,8 @@ unit "myapp" {
     subscription_id = local.subscription_id
     platform_path   = "../app-env"
     name            = "myapp"
-    registry_server    = trimspace(get_env("MYAPP_REGISTRY_SERVER", "")) == "" ? null : trimspace(get_env("MYAPP_REGISTRY_SERVER", ""))
-    acr_id             = trimspace(get_env("MYAPP_ACR_ID", "")) == "" ? null : trimspace(get_env("MYAPP_ACR_ID", ""))
-    min_replicas       = 1
-    max_replicas       = 1
+    container_image = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+    min_replicas    = 1
+    max_replicas    = 1
   }
 }

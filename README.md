@@ -81,10 +81,9 @@ Terraform backend coordinates are versioned in the Terragrunt configuration unde
 
 ## Workload-Specific Environment Variables
 
-- `MYAPP_IMAGE`
-- `MYAPP_REGISTRY_SERVER` (optional)
-- `MYAPP_ACR_ID` (optional)
 - `STATUSPAGE_API_KEY`
+
+The image reference and optional registry settings are versioned in each environment `terragrunt.stack.hcl`.
 
 ## Example Usage
 
@@ -117,15 +116,12 @@ The workflow is located in [`.github/workflows/provision-myapp-infra.yml`](.gith
 
 - `TERRAFORM_VERSION`
 - `TERRAGRUNT_VERSION`
-- `MYAPP_IMAGE`
-- `MYAPP_REGISTRY_SERVER`
-- `MYAPP_ACR_ID`
 
 ### Recommended GitHub Setup
 
 1. Create GitHub Environments named `dev` and `prod-aue`.
 2. Add approval rules for the production environment.
 3. Configure Azure federated credentials to trust the repo and those specific environments.
-4. Set the workload-specific variables and secrets (`STATUSPAGE_API_KEY`, image tags) on the environments that need them. The PR `plan` job only sees repository-level `vars` and `secrets`, so keep shared workload values there unless the workflow is changed to attach GitHub environments during PR plans.
+4. Set the workload-specific secrets (`STATUSPAGE_API_KEY`) on the environments that need them. The PR `plan` job only sees repository-level `vars` and `secrets`, so keep shared version pins there unless the workflow is changed to attach GitHub environments during PR plans.
 
 If `STATUSPAGE_API_KEY` is unset, the app config omits that secret entirely rather than sending an empty secret to Azure Container Apps.

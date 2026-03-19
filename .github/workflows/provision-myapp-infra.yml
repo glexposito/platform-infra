@@ -26,6 +26,10 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  TERRAFORM_VERSION: ${{ vars.TERRAFORM_VERSION || '1.14.7' }}
+  TERRAGRUNT_VERSION: ${{ vars.TERRAGRUNT_VERSION || '0.99.4' }}
+
 jobs:
   prepare-deployment:
     if: github.event_name == 'workflow_dispatch'
@@ -103,9 +107,6 @@ jobs:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      MYAPP_IMAGE: ${{ vars.MYAPP_IMAGE }}
-      MYAPP_REGISTRY_SERVER: ${{ vars.MYAPP_REGISTRY_SERVER }}
-      MYAPP_ACR_ID: ${{ vars.MYAPP_ACR_ID }}
       STATUSPAGE_API_KEY: ${{ secrets.STATUSPAGE_API_KEY }}
     steps:
       - name: Checkout
@@ -121,14 +122,14 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4.0.0
         with:
-          terraform_version: ${{ vars.TERRAFORM_VERSION || '1.14.7' }}
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
 
       - name: Setup Terragrunt
         uses: jdx/mise-action@v4.0.0
         with:
           version: 2026.3.9
           tool_versions: |
-            terragrunt ${{ vars.TERRAGRUNT_VERSION || '0.99.4' }}
+            terragrunt ${{ env.TERRAGRUNT_VERSION }}
 
       - name: Terragrunt stack generate
         run: terragrunt stack generate
@@ -163,9 +164,6 @@ jobs:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      MYAPP_IMAGE: ${{ vars.MYAPP_IMAGE }}
-      MYAPP_REGISTRY_SERVER: ${{ vars.MYAPP_REGISTRY_SERVER }}
-      MYAPP_ACR_ID: ${{ vars.MYAPP_ACR_ID }}
       STATUSPAGE_API_KEY: ${{ secrets.STATUSPAGE_API_KEY }}
     steps:
       - name: Checkout
@@ -184,14 +182,14 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4.0.0
         with:
-          terraform_version: ${{ vars.TERRAFORM_VERSION || '1.14.7' }}
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
 
       - name: Setup Terragrunt
         uses: jdx/mise-action@v4.0.0
         with:
           version: 2026.3.9
           tool_versions: |
-            terragrunt ${{ vars.TERRAGRUNT_VERSION || '0.99.4' }}
+            terragrunt ${{ env.TERRAGRUNT_VERSION }}
 
       - name: Terragrunt stack generate
         run: terragrunt stack generate
