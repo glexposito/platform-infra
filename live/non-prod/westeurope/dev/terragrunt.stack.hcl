@@ -1,6 +1,5 @@
 locals {
-  root_dir        = dirname(find_in_parent_folders("root.hcl"))
-  subscription_id = get_env("AZURE_SUBSCRIPTION_ID", "00000000-0000-0000-0000-000000000000")
+  root_dir = dirname(find_in_parent_folders("root.hcl"))
 }
 
 unit "app-env" {
@@ -20,7 +19,6 @@ unit "myapp" {
 
   values = {
     environment     = "dev"
-    subscription_id = local.subscription_id
     platform_path   = "../app-env"
     name            = "myapp"
     container_image = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"

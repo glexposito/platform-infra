@@ -21,7 +21,7 @@ dependency "platform" {
   mock_outputs_merge_strategy_with_state  = "shallow"
 
   mock_outputs = {
-    container_app_environment_id = "/subscriptions/${values.subscription_id}/resourceGroups/mock-rg/providers/Microsoft.App/managedEnvironments/mock-cae"
+    container_app_environment_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.App/managedEnvironments/mock-cae"
     resource_group_name          = "mock-rg"
   }
 }

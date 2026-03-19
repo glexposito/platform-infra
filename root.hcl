@@ -1,7 +1,5 @@
 locals {
   backend_vars          = read_terragrunt_config(find_in_parent_folders("backend.hcl"))
-  subscription_id       = get_env("AZURE_SUBSCRIPTION_ID", "00000000-0000-0000-0000-000000000000")
-  tenant_id             = get_env("AZURE_TENANT_ID", "00000000-0000-0000-0000-000000000000")
   state_resource_group  = local.backend_vars.locals.state_resource_group
   state_storage_account = local.backend_vars.locals.state_storage_account
   state_container       = local.backend_vars.locals.state_container
@@ -13,8 +11,6 @@ generate "provider" {
   contents  = <<EOF
 provider "azurerm" {
   features {}
-  subscription_id = "${local.subscription_id}"
-  tenant_id       = "${local.tenant_id}"
 }
 EOF
 }
