@@ -72,12 +72,14 @@ The environment name itself is passed explicitly from each `terragrunt.stack.hcl
 
 ## Required Environment Variables
 
-To run Terragrunt locally, you need the following Azure authentication variables:
-
-- `AZURE_SUBSCRIPTION_ID`
-- `AZURE_TENANT_ID`
-
 Terraform backend coordinates are versioned in the Terragrunt configuration under `live/*/backend.hcl`.
+
+For local Terragrunt usage, authenticate with Azure CLI:
+
+```bash
+az login
+az account set --subscription "<subscription-id>"
+```
 
 ## Workload-Specific Environment Variables
 
@@ -101,8 +103,7 @@ terragrunt run --all --non-interactive apply -- -auto-approve -no-color
 
 The workflow is located in [`.github/workflows/provision-myapp-infra.yml`](.github/workflows/provision-myapp-infra.yml).
 
-- **Pull Requests**: Automatically runs `terragrunt run --all plan` from each environment root.
-- **Manual Dispatch**: Allows applying changes to specific environments such as `dev` or `prod-weu`.
+- **Manual Dispatch**: Supports running `plan` or `apply` against specific environments such as `dev` or `prod-weu`.
 
 ### Required GitHub Secrets
 
@@ -114,6 +115,8 @@ The workflow is located in [`.github/workflows/provision-myapp-infra.yml`](.gith
 
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
+
+These can be defined at repository level or at GitHub Environment level for `dev` and `prod-weu`.
 
 Terraform and Terragrunt versions are pinned directly in the workflow file.
 

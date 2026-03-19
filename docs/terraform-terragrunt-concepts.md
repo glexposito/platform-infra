@@ -50,7 +50,7 @@ Terragrunt automatically configures the remote state for each module based on it
 Terragrunt uses HCL functions to dynamically determine values:
 - `find_in_parent_folders()`: Automatically finds the `root.hcl` file.
 - `read_terragrunt_config()`: Imports variables from other `.hcl` files such as `region.hcl`.
-- `get_env()`: Fetches environment variables (like `AZURE_SUBSCRIPTION_ID`).
+- `get_env()`: Fetches environment variables when needed by Terragrunt configuration.
 
 ---
 

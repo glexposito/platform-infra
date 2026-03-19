@@ -102,7 +102,7 @@ The naming logic depends on `location_short` from `region.hcl`, so add the right
 Navigate to the new environment root and apply. Terragrunt will automatically handle both stacks and create isolated state files.
 
 ```bash
-cd live/prod/westeurope/prod
+cd live/prod/northeurope/prod
 terragrunt stack generate
 terragrunt run --all --non-interactive init
 terragrunt run --all --non-interactive apply -- -auto-approve -no-color

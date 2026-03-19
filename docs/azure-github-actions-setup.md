@@ -129,8 +129,8 @@ The script prints the values to store in GitHub configuration:
 Store them as:
 
 - repository secret: `AZURE_CLIENT_ID`
-- repository variable: `AZURE_TENANT_ID`
-- repository variable: `AZURE_SUBSCRIPTION_ID`
+- repository or environment variable: `AZURE_TENANT_ID`
+- repository or environment variable: `AZURE_SUBSCRIPTION_ID`
 
 Use the manual steps below if you want to create or scope each Azure object yourself instead of using the helper script.
 
@@ -318,8 +318,8 @@ Repository-level secrets:
 
 Repository-level variables:
 
-- `AZURE_TENANT_ID`
-- `AZURE_SUBSCRIPTION_ID`
+- `AZURE_TENANT_ID` or environment-level `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID` or environment-level `AZURE_SUBSCRIPTION_ID`
 
 Environment-level secrets:
 
@@ -335,9 +335,6 @@ Before testing GitHub Actions, test locally with your Azure account:
 az login
 az account set --subscription "<subscription-id>"
 
-export AZURE_SUBSCRIPTION_ID="<subscription-id>"
-export AZURE_TENANT_ID="<tenant-id>"
-
 export STATUSPAGE_API_KEY="replace-me"
 
 cd live/non-prod/westeurope/dev
@@ -350,7 +347,7 @@ If local `plan` works, test GitHub Actions against `dev` first.
 
 ## Workflow Usage
 
-Manual dispatch supports:
+The workflow is manual-only and `workflow_dispatch` supports:
 
 - `targets=dev`
 - `targets=prod-weu`
