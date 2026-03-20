@@ -25,9 +25,9 @@ unit "myapp-1" {
     min_replicas    = 1
     max_replicas    = 1
     secret_environment_variables = {
-      STATUSPAGE_API_KEY = {
-        secret_name  = "statuspage-api-key"
-        secret_value = trimspace(get_env("STATUSPAGE_API_KEY", ""))
+      TEST_SECRET = {
+        secret_name  = "test-secret"
+        secret_value = trimspace(get_env("AZURE_TENANT_ID", ""))
       }
     }
   }
