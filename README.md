@@ -18,9 +18,9 @@ This repository implements a Terragrunt layout inspired by the [Gruntwork Terrag
 ```text
 live/
 ├── units/
-│   ├── app-env/
+│   ├── aca-env/
 │   │   └── terragrunt.hcl
-│   └── myapp/
+│   └── aca-app/
 │       └── terragrunt.hcl
 ├── non-prod/
 │   ├── backend.hcl
@@ -53,14 +53,14 @@ Azure naming conventions are generated dynamically from the shared stack token, 
 - Shared Log Analytics workspace: `law-<shared-stack>-<env>-<region>`
 - Application Container App: `ca-<app>-<env>-<region>`
 
-*Current app token: `myapp`. Current shared environment stack token: `platform-noncritical`. Current region shortcode in use: `weu` for West Europe.*
+*Current app tokens in live config: `myapp-1` and `myapp-2` in `dev`, `myapp-1` in `prod`. Current shared environment stack token: `platform-noncritical`. Current region shortcode in use: `weu` for West Europe.*
 
 ## Terragrunt Composition
 
 Reusable Terragrunt unit logic lives in:
 
-- `live/units/app-env/terragrunt.hcl`
-- `live/units/myapp/terragrunt.hcl`
+- `live/units/aca-env/terragrunt.hcl`
+- `live/units/aca-app/terragrunt.hcl`
 
 Each environment now has a small `terragrunt.stack.hcl` file that composes those shared units and passes only per-environment overrides such as the stack name, retention period, image registry settings, or replica counts.
 
@@ -81,15 +81,29 @@ az login
 az account set --subscription "<subscription-id>"
 ```
 
-## Workload-Specific Environment Variables
+## Workload-Specific Settings
 
-- `STATUSPAGE_API_KEY`
+The image reference, optional registry settings, environment variables, and secret environment variables are versioned in each environment `terragrunt.stack.hcl`.
 
-The image reference and optional registry settings are versioned in each environment `terragrunt.stack.hcl`.
+`secret_environment_variables` supports either a direct secret value or an Azure Key Vault reference per secret. Each entry must set exactly one of:
+
+```hcl
+secret_environment_variables = {
+  EXAMPLE_DIRECT = {
+    secret_name  = "example-direct"
+    secret_value = trimspace(get_env("EXAMPLE_DIRECT", ""))
+  }
+
+  EXAMPLE_KEY_VAULT = {
+    secret_name         = "example-key-vault"
+    key_vault_secret_id = "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<vault>/secrets/<secret>"
+  }
+}
+```
 
 ## Example Usage
 
-For full environment deployment, run from the environment root so Terragrunt can generate and apply `app-env` before `myapp`:
+For full environment deployment, run from the environment root so Terragrunt can generate and apply `aca-env` before the app units:
 
 ```bash
 cd live/non-prod/westeurope/dev
@@ -109,7 +123,7 @@ The workflow is located in [`.github/workflows/provision-myapp-infra.yml`](.gith
 
 - `AZURE_CLIENT_ID`
 
-> 💡 **Security Recommendation:** Currently, application secrets like `STATUSPAGE_API_KEY` are passed via GitHub Secrets. For enterprise production workloads, it is highly recommended to migrate these to **Azure Key Vault**. You can grant the Container App's Managed Identity `Key Vault Secrets User` access and reference the secret natively, keeping plain-text values entirely out of GitHub Actions and Terraform state files.
+> 💡 **Security Recommendation:** Application secrets passed through `secret_environment_variables` should ideally come from Azure Key Vault or another managed secret store instead of being stored directly in CI or Terraform state.
 
 ### Optional GitHub Variables
 
@@ -125,6 +139,4 @@ Terraform and Terragrunt versions are pinned directly in the workflow file.
 1. Create GitHub Environments named `dev` and `prod-weu`.
 2. Add approval rules for the production environment.
 3. Configure Azure federated credentials to trust the repo and those specific environments.
-4. Set the workload-specific secrets (`STATUSPAGE_API_KEY`) on the environments that need them.
-
-If `STATUSPAGE_API_KEY` is unset, the app config omits that secret entirely rather than sending an empty secret to Azure Container Apps.
+4. Set the workload-specific variables and secrets required by each app unit.

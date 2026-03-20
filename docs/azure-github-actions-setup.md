@@ -25,7 +25,7 @@ Azure resource names follow this pattern:
 Current conventions in this repo:
 
 - shared stack token: `platform-noncritical`
-- app token: `myapp`
+- app tokens: `myapp-1` and `myapp-2` in `dev`, `myapp-1` in `prod`
 - region code: `weu`
 
 `live` is a standard Terragrunt convention. It means these stacks are the concrete deployments, not reusable building blocks.
@@ -57,10 +57,11 @@ Terraform state is stored in Azure Storage using the `azurerm` backend from the 
 
 Each environment gets a separate state key based on the stack path:
 
-- `live/non-prod/westeurope/dev/app-env/terraform.tfstate`
-- `live/non-prod/westeurope/dev/myapp/terraform.tfstate`
-- `live/prod/westeurope/prod/app-env/terraform.tfstate`
-- `live/prod/westeurope/prod/myapp/terraform.tfstate`
+- `live/non-prod/westeurope/dev/aca-env/terraform.tfstate`
+- `live/non-prod/westeurope/dev/myapp-1/terraform.tfstate`
+- `live/non-prod/westeurope/dev/myapp-2/terraform.tfstate`
+- `live/prod/westeurope/prod/aca-env/terraform.tfstate`
+- `live/prod/westeurope/prod/myapp-1/terraform.tfstate`
 
 The backend values are versioned in `live/*/backend.hcl` and read by the root [root.hcl](/home/guille/dev/aca-infra/root.hcl).
 
@@ -323,7 +324,28 @@ Repository-level variables:
 
 Environment-level secrets:
 
-- `STATUSPAGE_API_KEY`
+- any values required by the app units in `secret_environment_variables`
+
+Each `secret_environment_variables` entry can use one of two modes:
+
+- direct secret value via `secret_value`
+- Azure Key Vault reference via `key_vault_secret_id`
+
+Example:
+
+```hcl
+secret_environment_variables = {
+  STATUSPAGE_API_KEY = {
+    secret_name  = "statuspage-api-key"
+    secret_value = trimspace(get_env("STATUSPAGE_API_KEY", ""))
+  }
+
+  EXTERNAL_API_KEY = {
+    secret_name         = "external-api-key"
+    key_vault_secret_id = "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<vault>/secrets/external-api-key"
+  }
+}
+```
 
 Terraform and Terragrunt versions are pinned directly in the workflow file.
 
@@ -334,8 +356,6 @@ Before testing GitHub Actions, test locally with your Azure account:
 ```bash
 az login
 az account set --subscription "<subscription-id>"
-
-export STATUSPAGE_API_KEY="replace-me"
 
 cd live/non-prod/westeurope/dev
 terragrunt stack generate
@@ -378,6 +398,6 @@ Relevant references:
 
 - GitHub Actions runners are ephemeral, so `terragrunt init` must run on every workflow execution.
 - `init` does not recreate Azure resources. It initializes the backend, providers, and working directory for that run.
-- The workflow runs from the environment root and uses `terragrunt run --all --non-interactive ...` so `app-env` is applied before `myapp`.
+- The workflow runs from the environment root and uses `terragrunt run --all --non-interactive ...` so `aca-env` is applied before the app units.
 - If `acr_id` is used, the deployment identity needs enough permission to create the `AcrPull` role assignment.
 - This repository is a PoC. For quick resets in a disposable test subscription, it can be reasonable to delete both Azure resources and matching backend state for `dev`, but that is not a safe practice for persistent environments.

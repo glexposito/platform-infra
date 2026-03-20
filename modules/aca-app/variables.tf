@@ -73,11 +73,23 @@ variable "environment_variables" {
 variable "secret_environment_variables" {
   description = "Environment variables sourced from Container App secrets."
   type = map(object({
-    secret_name  = string
-    secret_value = string
+    secret_name         = string
+    secret_value        = optional(string)
+    key_vault_secret_id = optional(string)
   }))
   default   = {}
   sensitive = true
+
+  validation {
+    condition = alltrue([
+      for secret in values(var.secret_environment_variables) :
+      (
+        (try(trimspace(secret.secret_value), "") != "") !=
+        (try(trimspace(secret.key_vault_secret_id), "") != "")
+      )
+    ])
+    error_message = "Each secret_environment_variables entry must define exactly one of secret_value or key_vault_secret_id."
+  }
 }
 
 variable "registry_server" {

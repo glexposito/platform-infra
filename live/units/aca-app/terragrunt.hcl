@@ -45,10 +45,5 @@ inputs = {
     },
     try(values.environment_variables, {})
   )
-  secret_environment_variables = try(values.secret_environment_variables, trimspace(get_env("STATUSPAGE_API_KEY", "")) == "" ? {} : {
-    STATUSPAGE_API_KEY = {
-      secret_name  = "statuspage-api-key"
-      secret_value = trimspace(get_env("STATUSPAGE_API_KEY", ""))
-    }
-  })
+  secret_environment_variables = try(values.secret_environment_variables, {})
 }

@@ -38,13 +38,13 @@ In standard Terraform, you often find yourself copy-pasting provider and backend
 
 ### Dependencies
 Infrastructure often has a natural order. You can't deploy an app until the environment (the cluster) exists.
-- **In this project:** `myapp` has a `dependency` block pointing to `app-env`.
-- **Outputs to Inputs:** Terragrunt automatically takes the `outputs` from the `app-env` module and passes them as `inputs` to the `myapp` module (e.g., the `container_app_environment_id`).
-- **Mock Outputs:** When the `app-env` hasn't been deployed yet (e.g., in a CI check), `myapp` uses `mock_outputs`. This allows commands like `terragrunt plan` to work even if the dependent infrastructure doesn't exist yet by providing temporary "fake" IDs.
+- **In this project:** each app unit, such as `myapp-1`, has a `dependency` block pointing to `aca-env`.
+- **Outputs to Inputs:** Terragrunt automatically takes the `outputs` from the `aca-env` module and passes them as `inputs` to the app unit (e.g., the `container_app_environment_id`).
+- **Mock Outputs:** When the `aca-env` hasn't been deployed yet (e.g., in a CI check), the app unit uses `mock_outputs`. This allows commands like `terragrunt plan` to work even if the dependent infrastructure doesn't exist yet by providing temporary "fake" IDs.
 
 ### Remote State Management
 Terragrunt automatically configures the remote state for each module based on its file path.
-- If a generated unit ends up at `live/non-prod/westeurope/dev/myapp`, Terragrunt will automatically set the state key to `live/non-prod/westeurope/dev/myapp/terraform.tfstate`.
+- If a generated unit ends up at `live/non-prod/westeurope/dev/myapp-1`, Terragrunt will automatically set the state key to `live/non-prod/westeurope/dev/myapp-1/terraform.tfstate`.
 
 ### Locals and Functions
 Terragrunt uses HCL functions to dynamically determine values:
@@ -63,18 +63,18 @@ The folder structure **is** the configuration. Instead of large variable files, 
 1.  **Backend Layer** (`live/non-prod/backend.hcl`): Defines the Terraform state backend coordinates for that top-level environment group.
 2.  **Region Layer** (`live/non-prod/westeurope/region.hcl`): Defines the Azure `location`.
 3.  **Environment Layer** (`live/non-prod/westeurope/dev/terragrunt.stack.hcl`): The environment entrypoint that composes deployable units and sets environment-specific overrides such as `environment = "dev"`.
-4.  **Unit Layer** (`live/units/myapp/terragrunt.hcl`): The reusable Terragrunt wrapper that maps stack `values` into Terraform inputs and dependencies.
+4.  **Unit Layer** (`live/units/aca-app/terragrunt.hcl`): The reusable Terragrunt wrapper that maps stack `values` into Terraform inputs and dependencies.
 
 Terragrunt uses the environment stack to generate deployable units. Those units read `region.hcl` from their generated location and receive the environment name from stack values.
 We separate the **Platform** from the **Application**:
-- **Landlord (`app-env`)**: Responsible for the Resource Group and the Container App Environment. It "owns" the land.
-- **Tenant (`myapp`)**: Responsible for the container image and settings. It "rents" space in the Landlord's environment.
+- **Landlord (`aca-env`)**: Responsible for the Resource Group and the Container App Environment. It "owns" the land.
+- **Tenant (`myapp-1`, `myapp-2`, etc.)**: Responsible for the container image and settings. It "rents" space in the Landlord's environment.
 
 ### Deployment Flow
 When you run `terragrunt stack generate` and `terragrunt run --all apply` from an environment root:
 1.  Terragrunt reads the `terragrunt.stack.hcl`.
-2.  It generates deployable unit directories such as `app-env/` and `myapp/`.
+2.  It generates deployable unit directories such as `aca-env/`, `myapp-1/`, and `myapp-2/`.
 3.  Each generated unit includes `root.hcl` to set up the Azure backend and provider.
-4.  Each generated unit resolves `dependencies` (for example, `myapp` fetching IDs from `app-env`).
+4.  Each generated unit resolves `dependencies` (for example, `myapp-1` fetching IDs from `aca-env`).
 5.  Terragrunt invokes the Terraform module defined by the unit wrapper under `modules/`.
 6.  It runs `terraform apply` with the calculated `inputs`.

@@ -29,8 +29,10 @@ resource "azurerm_container_app" "this" {
   dynamic "secret" {
     for_each = nonsensitive(var.secret_environment_variables)
     content {
-      name  = secret.value.secret_name
-      value = secret.value.secret_value
+      name                = secret.value.secret_name
+      value               = try(secret.value.secret_value, null)
+      key_vault_secret_id = try(secret.value.key_vault_secret_id, null)
+      identity            = try(secret.value.key_vault_secret_id, null) == null ? null : "System"
     }
   }
 

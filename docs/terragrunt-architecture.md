@@ -13,8 +13,8 @@ The `live/` directory is organized into the following hierarchy:
 ```text
 live/
 ├── units/
-│   ├── app-env/terragrunt.hcl
-│   └── myapp/terragrunt.hcl
+│   ├── aca-env/terragrunt.hcl
+│   └── aca-app/terragrunt.hcl
 └── [environment-group] / [region] / [environment]
 ```
 
@@ -28,9 +28,9 @@ live/
 ```text
 live/
 ├── units/
-│   ├── app-env/
+│   ├── aca-env/
 │   │   └── terragrunt.hcl      # Shared app environment unit wrapper
-│   └── myapp/
+│   └── aca-app/
 │       └── terragrunt.hcl      # Shared app unit wrapper
 ├── non-prod/
 │   ├── backend.hcl              # Defines state backend settings for non-prod
@@ -48,17 +48,17 @@ live/
 
 ## How It Works
 
-1.  **Isolated State Files:** Every generated unit still gets its own isolated Terraform state file in the Azure Storage backend based on its final path (for example `live/non-prod/westeurope/dev/myapp/terraform.tfstate`). This physically limits the blast radius: a destructive command run in `dev` cannot corrupt the `prod` state file.
+1.  **Isolated State Files:** Every generated unit still gets its own isolated Terraform state file in the Azure Storage backend based on its final path (for example `live/non-prod/westeurope/dev/myapp-1/terraform.tfstate`). This physically limits the blast radius: a destructive command run in `dev` cannot corrupt the `prod` state file.
 2.  **Shared Unit Logic:** Environment-level `terragrunt.stack.hcl` files compose shared Terragrunt unit wrappers from `live/units/`. Those units read `region.hcl` from their generated location, while the environment name is passed explicitly from the stack file.
 3.  **Platform vs. Application Separation (Landlord/Tenant Model):** We strictly separate the underlying shared environment from the applications that run on it.
-    *   **The App Environment (`app-env`):** Acts as the "Landlord." It is deployed once per environment/region and provisions the shared foundation: the Resource Group, the Log Analytics Workspace, and the Container App Environment (the server cluster). In this repo, those resources currently use the shared stack token `platform-noncritical`.
-    *   **The Application (`myapp`):** Acts as the "Tenant." It represents a single microservice. It uses a Terragrunt `dependency` block to ask the platform for its IDs, and then deploys a specific container image into that shared cluster. 
+    *   **The App Environment (`aca-env`):** Acts as the "Landlord." It is deployed once per environment/region and provisions the shared foundation: the Resource Group, the Log Analytics Workspace, and the Container App Environment (the server cluster). In this repo, those resources currently use the shared stack token `platform-noncritical`.
+    *   **The Application units (`myapp-1`, `myapp-2`, etc.):** Act as the "Tenants." Each unit represents a single microservice. Each one uses a Terragrunt `dependency` block to ask the platform for its IDs, and then deploys a specific container image into that shared cluster. 
     
-    *Example:* If you need to add a second microservice (e.g., `user-api`), you add another unit to the environment stack next to the others. It will automatically deploy into the existing `app-env`, significantly reducing Azure costs and simplifying architecture:
+    *Example:* If you need to add a second microservice (e.g., `user-api`), you add another unit to the environment stack next to the others. It will automatically deploy into the existing `aca-env`, significantly reducing Azure costs and simplifying architecture:
 
     ```text
     live/non-prod/westeurope/dev/
-    └── terragrunt.stack.hcl     <-- Defines app-env, myapp, user-api units
+    └── terragrunt.stack.hcl     <-- Defines aca-env, myapp-1, myapp-2, user-api units
     ```
 
 ---
@@ -69,7 +69,7 @@ The biggest advantage of this structure is how easy it is to scale.
 
 ### Scenario: Adding a New Region (e.g., Europe)
 
-If you need to deploy the `prod` environment for `myapp` to a new region beyond the current `westeurope` setup, you simply replicate the folder structure.
+If you need to deploy the `prod` environment for `myapp-1` to a new region beyond the current `westeurope` setup, you simply replicate the folder structure.
 
 **Step 1: Create the new region and environment directories.**
 Navigate to the appropriate subscription (e.g., `prod`) and create the new region folder, followed by the environment folder.
@@ -141,10 +141,10 @@ Only **after** `terragrunt destroy` has successfully completed and verified the 
 
 ## Dependencies and Mock Outputs
 
-Because the Application (`myapp`) depends on the App Environment (`app-env`), it uses a Terragrunt `dependency` block to fetch the necessary resource IDs.
+Because each Application unit (for example `myapp-1`) depends on the App Environment (`aca-env`), it uses a Terragrunt `dependency` block to fetch the necessary resource IDs.
 
 Splitting modules into separate "stacks" (Platform vs Application) fundamentally changes how Terraform calculates its dependency graph. In a monolithic module, Terraform knows it will create all resources and can internally mark future IDs as `(known after apply)`. However, when separated, Terraform cannot natively read across different state files during a "Cold Start" (when the Platform hasn't been deployed yet).
 
 If you attempt to run `terragrunt plan` on the Application during a cold start, Terraform will crash because it expects a cluster ID but receives null from the unapplied Platform state.
 
-To solve this, the shared `myapp` unit wrapper under `live/units/myapp/terragrunt.hcl` uses Terragrunt `mock_outputs` for `init`, `validate`, `plan`, and `output`, but not for `apply`. It also uses `mock_outputs_merge_strategy_with_state = "shallow"` so partial state from a failed platform deployment can still be combined with mocks during non-apply commands.
+To solve this, the shared `aca-app` unit wrapper under `live/units/aca-app/terragrunt.hcl` uses Terragrunt `mock_outputs` for `init`, `validate`, `plan`, and `output`, but not for `apply`. It also uses `mock_outputs_merge_strategy_with_state = "shallow"` so partial state from a failed platform deployment can still be combined with mocks during non-apply commands.
