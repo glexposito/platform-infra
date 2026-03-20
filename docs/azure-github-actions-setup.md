@@ -379,6 +379,8 @@ The workflow is manual-only and `workflow_dispatch` supports:
 
 The workflow intentionally rejects `apply` when a `prod-*` target is mixed with other environments.
 
+Within a single workflow job, Terragrunt stores per-unit plan files using `--out-dir` during the `plan` step, and the `apply` step reuses those saved plans instead of recalculating them.
+
 ## Logging And Cost
 
 This repo currently keeps:
