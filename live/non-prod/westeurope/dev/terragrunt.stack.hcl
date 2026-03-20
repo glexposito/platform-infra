@@ -46,3 +46,17 @@ unit "myapp-2" {
     max_replicas    = 1
   }
 }
+
+unit "myapp-3" {
+  source = "${local.root_dir}/live/units/aca-app"
+  path   = "myapp-3"
+
+  values = {
+    environment     = "dev"
+    platform_path   = "../aca-env"
+    name            = "myapp-3"
+    container_image = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+    min_replicas    = 1
+    max_replicas    = 1
+  }
+}
