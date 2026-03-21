@@ -13,6 +13,7 @@ env:
   RESOURCE_GROUP: "rg-platform-noncritical-dev-weu"
   CONTAINER_APP_ENVIRONMENT: "cae-platform-noncritical-dev-weu"
   LOCATION: "westeurope"
+  YAML_CONFIG_PATH: ".github/containerapps/hello-world-dev.yaml"
 
 jobs:
   deploy:
@@ -27,6 +28,9 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
       - name: Deploy hello-world image
         uses: azure/container-apps-deploy-action@v2
         with:
@@ -35,4 +39,5 @@ jobs:
           resourceGroup: ${{ env.RESOURCE_GROUP }}
           containerAppEnvironment: ${{ env.CONTAINER_APP_ENVIRONMENT }}
           location: ${{ env.LOCATION }}
+          yamlConfigPath: ${{ env.YAML_CONFIG_PATH }}
           disableTelemetry: true
