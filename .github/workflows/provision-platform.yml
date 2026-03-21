@@ -1,5 +1,5 @@
 name: Provision Platform
-run-name: ${{ inputs.command }} platform-noncritical (${{ inputs.environment }})
+run-name: Provision Platform (${{ inputs.environment }})
 
 on:
   workflow_dispatch:

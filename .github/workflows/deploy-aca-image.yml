@@ -1,5 +1,5 @@
 name: Deploy ACA Image
-run-name: deploy hello-world to dev ACA
+run-name: Deploy ACA Image (dev)
 
 on:
   workflow_dispatch:
