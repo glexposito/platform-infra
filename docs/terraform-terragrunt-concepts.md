@@ -1,81 +1,93 @@
-# Terraform & Terragrunt Concepts in ACA-Infra
+# Terraform And Terragrunt Concepts
 
-This document explains the foundational concepts of Terraform and Terragrunt as they are applied in this repository. Use this as a guide to understand how the infrastructure is structured and managed.
+This repo uses Terraform modules plus Terragrunt stack wrappers.
 
----
+## Terraform
 
-## 1. Terraform Basics
+Terraform manages the Azure resources themselves.
 
-Terraform is an Infrastructure as Code (IaC) tool that allows you to define cloud resources in human-readable configuration files.
+In this repo:
 
-### Providers
-Providers are plugins that Terraform uses to interact with cloud providers (like Azure, AWS, GCP).
-- **In this project:** The `azurerm` provider is used to manage Azure resources. It is globally configured in the `root.hcl` file and generated into every stack's `provider.tf` file.
+- [modules/aca-environment](/home/guille/dev/platform-infra/modules/aca-environment) manages:
+  - Log Analytics workspace
+  - Container Apps environment
 
-### Modules
-Modules are containers for multiple resources that are used together. They allow you to package and reuse infrastructure.
-- **`modules/aca-environment`**: Provisions the "foundation" (Resource Group, Log Analytics, Container App Environment).
-- **`modules/aca-app`**: Provisions a specific Container App and its permissions (AcrPull).
+- [modules/aca-app](/home/guille/dev/platform-infra/modules/aca-app) manages:
+  - Container App
+  - optional `AcrPull` role assignment
 
-### Resources
-Resources are the most important element in the Terraform language. They describe one or more infrastructure objects.
-- *Example:* `azurerm_container_app` in `modules/aca-app/main.tf` defines the actual container running in Azure.
+Terraform state is stored remotely in Azure Storage through the backend generated from [root.hcl](/home/guille/dev/platform-infra/root.hcl).
 
-### State
-Terraform must store state about your managed infrastructure and configuration. This state is used by Terraform to map real-world resources to your configuration.
-- **Remote State:** Instead of a local `terraform.tfstate` file, we store state in an **Azure Storage Account**. This allows multiple team members to work on the same infrastructure.
+## Terragrunt
 
----
+Terragrunt handles:
 
-## 2. Terragrunt Concepts
+- shared backend and provider generation
+- stack composition
+- dependency wiring between units
+- per-stack remote state keys
 
-Terragrunt is a thin wrapper that provides extra tools for keeping your configurations DRY (Don't Repeat Yourself), working with multiple Terraform modules, and managing remote state.
+Reusable Terragrunt wrappers live under [live/units](/home/guille/dev/platform-infra/live/units).
 
-### DRY (Don't Repeat Yourself)
-In standard Terraform, you often find yourself copy-pasting provider and backend configurations. Terragrunt eliminates this.
-- **`root.hcl`**: Contains the "source of truth" for the Azure backend and provider. All other folders "include" this file.
-- **`live/units/`**: Contains reusable Terragrunt unit wrappers. Instead of repeating module wiring, dependency blocks, and naming logic in every environment, each `terragrunt.stack.hcl` composes these shared units.
+## Stack Model
 
-### Dependencies
-Infrastructure often has a natural order. You can't deploy an app until the environment (the cluster) exists.
-- **In this project:** each app unit, such as `myapp-1`, has a `dependency` block pointing to `aca-env`.
-- **Outputs to Inputs:** Terragrunt automatically takes the `outputs` from the `aca-env` module and passes them as `inputs` to the app unit (e.g., the `container_app_environment_id`).
-- **Mock Outputs:** When the `aca-env` hasn't been deployed yet (e.g., in a CI check), the app unit uses `mock_outputs`. This allows commands like `terragrunt plan` to work even if the dependent infrastructure doesn't exist yet by providing temporary "fake" IDs.
+Each stack root contains a `terragrunt.stack.hcl`.
 
-### Remote State Management
-Terragrunt automatically configures the remote state for each module based on its file path.
-- If a generated unit ends up at `live/non-prod/westeurope/dev/myapp-1`, Terragrunt will automatically set the state key to `live/non-prod/westeurope/dev/myapp-1/terraform.tfstate`.
+Examples:
 
-### Locals and Functions
-Terragrunt uses HCL functions to dynamically determine values:
-- `find_in_parent_folders()`: Automatically finds the `root.hcl` file.
-- `read_terragrunt_config()`: Imports variables from other `.hcl` files such as `region.hcl`.
-- `get_env()`: Fetches environment variables when needed by Terragrunt configuration.
+- [live/non-prod/westeurope/dev/platform-noncritical/terragrunt.stack.hcl](/home/guille/dev/platform-infra/live/non-prod/westeurope/dev/platform-noncritical/terragrunt.stack.hcl)
+- [live/non-prod/westeurope/dev/myapp-3/terragrunt.stack.hcl](/home/guille/dev/platform-infra/live/non-prod/westeurope/dev/myapp-3/terragrunt.stack.hcl)
 
----
+The platform stack generates:
 
-## 3. How they work together in this Repo
+- `rg`
+- `storage-account`
+- `aca-env`
 
-The architecture follows a "Folder-based Hierarchy."
+An app stack generates:
 
-### The Hierarchy
-The folder structure **is** the configuration. Instead of large variable files, we use small `.hcl` files at each level:
-1.  **Backend Layer** (`live/non-prod/backend.hcl`): Defines the Terraform state backend coordinates for that top-level environment group.
-2.  **Region Layer** (`live/non-prod/westeurope/region.hcl`): Defines the Azure `location`.
-3.  **Environment Layer** (`live/non-prod/westeurope/dev/`): The logical deployment stage that groups related stack folders such as `platform-noncritical/` and `myapp-1/`.
-4.  **Stack Layer** (`live/non-prod/westeurope/dev/platform-noncritical/terragrunt.stack.hcl`): The stack entrypoint that composes deployable units and sets stack-specific overrides such as `environment = "dev"`.
-5.  **Unit Layer** (`live/units/aca-app/terragrunt.hcl`): The reusable Terragrunt wrapper that maps stack `values` into Terraform inputs and dependencies.
+- `app`
 
-Terragrunt uses each stack's `terragrunt.stack.hcl` to generate deployable units. Those units read `region.hcl` from their generated location and receive the environment name from stack values.
-We separate the **Platform** from the **Application**:
-- **Landlord (`aca-env`)**: Responsible for the Resource Group and the Container App Environment. It "owns" the land.
-- **Tenant (`myapp-1`, `myapp-3`, etc.)**: Responsible for the container image and settings. It "rents" space in the Landlord's environment.
+## Dependencies And Mocks
 
-### Deployment Flow
-When you run `terragrunt stack generate` and `terragrunt run --all apply` from a stack root such as `live/non-prod/westeurope/dev/platform-noncritical`:
-1.  Terragrunt reads that stack's `terragrunt.stack.hcl`.
-2.  It generates deployable unit directories such as `rg/`, `storage-account/`, and `aca-env/` for a platform stack, or `app/` for an app stack.
-3.  Each generated unit includes `root.hcl` to set up the Azure backend and provider.
-4.  Each generated unit resolves `dependencies` (for example, `myapp-1` fetching IDs from `aca-env`).
-5.  Terragrunt invokes the Terraform module defined by the unit wrapper under `modules/`.
-6.  It runs `terraform apply` with the calculated `inputs`.
+Platform units use Terragrunt `dependency` blocks plus `mock_outputs` so non-apply commands can work before the resource group exists.
+
+The app unit supports:
+
+- explicit inputs for `resource_group_name` and `container_app_environment_name`
+- optional dependency-based wiring through `platform_path`
+
+The current live app stacks pass explicit values, so Terraform looks up the existing Container Apps environment by name at apply time.
+
+## Typical Flow
+
+Platform stack:
+
+```bash
+cd live/non-prod/westeurope/dev/platform-noncritical
+terragrunt stack generate
+terragrunt run --all --non-interactive init
+terragrunt run --all --non-interactive plan -- -no-color
+terragrunt run --all --non-interactive apply -- -auto-approve -no-color
+```
+
+App stack:
+
+```bash
+cd live/non-prod/westeurope/dev/myapp-3
+terragrunt stack generate
+terragrunt run --all --non-interactive init
+terragrunt run --all --non-interactive plan -- -no-color
+terragrunt run --all --non-interactive apply -- -auto-approve -no-color
+```
+
+## Ownership Rule
+
+Terraform is the owner of:
+
+- shared platform resources
+- Container App resources
+- scale settings
+- environment variables and secrets
+
+The image workflow under [deploy-aca-image.yml](/home/guille/dev/platform-infra/.github/workflows/deploy-aca-image.yml) only updates the image of an already-existing Container App. It does not create or define the app.

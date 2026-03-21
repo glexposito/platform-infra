@@ -1,105 +1,82 @@
 # platform-infra
 
-Terragrunt proof of concept for Azure platform infrastructure, shared services, and environment provisioning.
+Terragrunt proof of concept for Azure platform and app infrastructure on Azure Container Apps.
 
 > [!WARNING]
-> This repository is a proof of concept.
-> It is intended for experimentation and learning in a disposable Azure account, not as a hardened production baseline.
-> Expect breaking refactors, manual resets, and destructive rebuilds while the structure is still being explored.
+> This repository is a proof of concept for a disposable Azure account.
+> Expect refactors, rebuilds, and manual cleanup while the layout is still evolving.
 
-This repository implements a Terragrunt layout inspired by the [Gruntwork Terragrunt Reference Architecture](docs/terragrunt-architecture.md), utilizing a strict hierarchical layout (`environment-group/backend -> region -> environment`) with explicit stack files and shared unit wrappers to maximize configuration reuse and limit blast radius.
+## Layout
 
-## Architecture & Layout
+This repo keeps shared platform resources separate from app-specific resources:
 
-- `modules/aca-environment`: Reusable Terraform module for the shared foundation (Resource Group, Log Analytics, Container App Environment).
-- `modules/aca-app`: Reusable Terraform module for deploying specific microservices into an existing `aca-environment`.
-- `live/`: The "Live" infrastructure configurations, organized by hierarchy:
+- `platform-noncritical/` stacks manage the shared resource group, state storage account, Log Analytics workspace, and Container Apps environment.
+- `myapp-*` stacks manage individual Container Apps.
 
 ```text
 live/
 ├── units/
-│   ├── aca-env/
-│   │   └── terragrunt.hcl
 │   ├── rg/
-│   │   └── terragrunt.hcl
 │   ├── storage-account/
-│   │   └── terragrunt.hcl
+│   ├── aca-env/
 │   └── aca-app/
-│       └── terragrunt.hcl
 ├── non-prod/
-│   ├── backend.hcl
 │   └── westeurope/
-│       ├── region.hcl
 │       └── dev/
 │           ├── platform-noncritical/
-│           │   └── terragrunt.stack.hcl
 │           ├── myapp-1/
-│           │   └── terragrunt.stack.hcl
 │           └── myapp-3/
-│               └── terragrunt.stack.hcl
 └── prod/
-    ├── backend.hcl
     └── westeurope/
-        ├── region.hcl
         └── prod/
             ├── platform-noncritical/
-            │   └── terragrunt.stack.hcl
             └── myapp-1/
-                └── terragrunt.stack.hcl
 ```
 
-### Documentation
-For detailed information on how to work with this architecture, see the following guides:
-- 📖 [**Terraform & Terragrunt Concepts**](docs/terraform-terragrunt-concepts.md): Foundations of IaC and how they are implemented in this repository.
-- 📖 [**Terragrunt Architecture Guide**](docs/terragrunt-architecture.md): How to add new regions, manage inheritance, and safely decommission environments.
-- 📖 [**GitHub Actions & Azure Setup**](docs/azure-github-actions-setup.md): Guide for bootstrapping the Azure OIDC connection and State storage.
+Reusable Terraform modules live under `modules/`, and reusable Terragrunt wrappers live under `live/units/`.
 
----
+## Naming
 
-## Naming Convention
+- Resource group: `rg-<shared-stack>-<env>-<region>`
+- Container Apps environment: `cae-<shared-stack>-<env>-<region>`
+- Log Analytics workspace: `law-<shared-stack>-<env>-<region>`
+- Container App: `ca-<app>-<env>-<region>`
 
-Azure naming conventions are generated dynamically from the shared stack token, app token, environment, and region shortcode:
+Current shared stack token: `platform-noncritical`.
+Current region short code: `weu`.
 
-- Shared environment resource group: `rg-<shared-stack>-<env>-<region>`
-- Shared Container Apps environment: `cae-<shared-stack>-<env>-<region>`
-- Shared Log Analytics workspace: `law-<shared-stack>-<env>-<region>`
-- Application Container App: `ca-<app>-<env>-<region>`
+## Local Usage
 
-*Current app tokens in live config: `myapp-1` and `myapp-3` in `dev`, `myapp-1` in `prod`. Current shared environment stack token: `platform-noncritical`. Current region shortcode in use: `weu` for West Europe.*
-
-## Terragrunt Composition
-
-Reusable Terragrunt unit logic lives in:
-
-- `live/units/rg/terragrunt.hcl`
-- `live/units/storage-account/terragrunt.hcl`
-- `live/units/aca-env/terragrunt.hcl`
-- `live/units/aca-app/terragrunt.hcl`
-
-Each environment now has one stack folder per deployable unit, such as `platform-noncritical/` for the shared foundation and one folder per app. The platform stack composes the shared foundation units, while each app stack targets a single app deployment against an existing Container Apps environment.
-
-The unit wrappers derive region and environment context from the generated unit location by reading:
-
-- `../../../../region.hcl`
-
-The environment name itself is passed explicitly from each `terragrunt.stack.hcl` file, which keeps the layout small and avoids an extra `env.hcl` file per environment.
-
-## Required Environment Variables
-
-Terraform backend coordinates are versioned in the Terragrunt configuration under `live/*/backend.hcl`.
-
-For local Terragrunt usage, authenticate with Azure CLI:
+Authenticate first:
 
 ```bash
 az login
 az account set --subscription "<subscription-id>"
 ```
 
-## Workload-Specific Settings
+Platform stack:
 
-The image reference, optional registry settings, environment variables, and secret environment variables are versioned in each environment `terragrunt.stack.hcl`.
+```bash
+cd live/non-prod/westeurope/dev/platform-noncritical
+terragrunt stack generate
+terragrunt run --all --non-interactive init
+terragrunt run --all --non-interactive plan -- -no-color
+terragrunt run --all --non-interactive apply -- -auto-approve -no-color
+```
 
-`secret_environment_variables` supports either a direct secret value or an Azure Key Vault reference per secret. Each entry must set exactly one of:
+App stack:
+
+```bash
+cd live/non-prod/westeurope/dev/myapp-3
+terragrunt stack generate
+terragrunt run --all --non-interactive init
+terragrunt run --all --non-interactive plan -- -no-color
+terragrunt run --all --non-interactive apply -- -auto-approve -no-color
+```
+
+Workload settings such as `container_image`, `min_replicas`, `max_replicas`, environment variables, and secret environment variables are versioned in each stack `terragrunt.stack.hcl`.
+
+`secret_environment_variables` supports either a direct value or a Key Vault reference per secret:
 
 ```hcl
 secret_environment_variables = {
@@ -115,56 +92,31 @@ secret_environment_variables = {
 }
 ```
 
-## Example Usage
+## GitHub Actions
 
-For aggregate platform deployment, run from the platform root:
+Current workflows:
 
-```bash
-cd live/non-prod/westeurope/dev/platform-noncritical
-terragrunt stack generate
-terragrunt run --all --non-interactive init
-terragrunt run --all --non-interactive plan -- -no-color
-terragrunt run --all --non-interactive apply -- -auto-approve -no-color
-```
+- [`.github/workflows/provision-platform.yml`](.github/workflows/provision-platform.yml): Terragrunt `plan` or `apply` for `platform-noncritical`
+- [`.github/workflows/deploy-app.yml`](.github/workflows/deploy-app.yml): Terragrunt `plan` or `apply` for one app stack
+- [`.github/workflows/deploy-aca-image.yml`](.github/workflows/deploy-aca-image.yml): image-only update for an existing Container App
 
-For a single app deployment, run from that app root:
+The Terragrunt workflows do not reuse saved plan files. `apply` recalculates inputs on each run, which avoids bootstrap problems with mocked dependency outputs.
 
-```bash
-cd live/non-prod/westeurope/dev/myapp-1
-terragrunt stack generate
-terragrunt run --all --non-interactive init
-terragrunt run --all --non-interactive plan -- -no-color
-terragrunt run --all --non-interactive apply -- -auto-approve -no-color
-```
+The ACA image workflow does not create infrastructure. It only updates the image of an existing Container App. Terraform remains the owner of the app resource shape.
 
-## GitHub Actions CI/CD
+Required GitHub configuration:
 
-The workflows are located in:
+- Secret: `AZURE_CLIENT_ID`
+- Variables: `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
 
-- [`.github/workflows/provision-platform.yml`](.github/workflows/provision-platform.yml)
-- [`.github/workflows/deploy-app.yml`](.github/workflows/deploy-app.yml)
-
-- **Platform workflow**: runs `plan` or `apply` against the platform stack for `dev` or `prod-weu`
-- **App workflow**: runs `plan` or `apply` for a single app/environment pair
-
-### Required GitHub Secrets
-
-- `AZURE_CLIENT_ID`
-
-> 💡 **Security Recommendation:** Application secrets passed through `secret_environment_variables` should ideally come from Azure Key Vault or another managed secret store instead of being stored directly in CI or Terraform state.
-
-### Optional GitHub Variables
-
-- `AZURE_TENANT_ID`
-- `AZURE_SUBSCRIPTION_ID`
-
-These can be defined at repository level or at GitHub Environment level for `dev` and `prod-weu`.
-
-Terraform and Terragrunt versions are pinned directly in the workflow file.
-
-### Recommended GitHub Setup
+Recommended setup:
 
 1. Create GitHub Environments named `dev` and `prod-weu`.
-2. Add approval rules for the production environment.
-3. Configure Azure federated credentials to trust the repo and those specific environments.
-4. Set the workload-specific variables and secrets required by each app unit.
+2. Add approvals for `prod-weu`.
+3. Configure Azure federated credentials for those GitHub Environments.
+
+## Docs
+
+- [Terraform & Terragrunt Concepts](docs/terraform-terragrunt-concepts.md)
+- [Terragrunt Architecture Guide](docs/terragrunt-architecture.md)
+- [Azure & GitHub Actions Setup](docs/azure-github-actions-setup.md)
