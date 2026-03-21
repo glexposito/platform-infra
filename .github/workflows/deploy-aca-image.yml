@@ -39,5 +39,6 @@ jobs:
           resourceGroup: ${{ env.RESOURCE_GROUP }}
           containerAppEnvironment: ${{ env.CONTAINER_APP_ENVIRONMENT }}
           location: ${{ env.LOCATION }}
-          yamlConfigPath: ${{ env.YAML_CONFIG_PATH }}
           disableTelemetry: true
+          minReplicas: 1
+          maxReplicas: 1
