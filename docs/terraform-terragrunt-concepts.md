@@ -62,18 +62,19 @@ The architecture follows a "Folder-based Hierarchy."
 The folder structure **is** the configuration. Instead of large variable files, we use small `.hcl` files at each level:
 1.  **Backend Layer** (`live/non-prod/backend.hcl`): Defines the Terraform state backend coordinates for that top-level environment group.
 2.  **Region Layer** (`live/non-prod/westeurope/region.hcl`): Defines the Azure `location`.
-3.  **Environment Layer** (`live/non-prod/westeurope/dev/terragrunt.stack.hcl`): The environment entrypoint that composes deployable units and sets environment-specific overrides such as `environment = "dev"`.
-4.  **Unit Layer** (`live/units/aca-app/terragrunt.hcl`): The reusable Terragrunt wrapper that maps stack `values` into Terraform inputs and dependencies.
+3.  **Environment Layer** (`live/non-prod/westeurope/dev/`): The logical deployment stage that groups related stack folders such as `platform-noncritical/` and `myapp-1/`.
+4.  **Stack Layer** (`live/non-prod/westeurope/dev/platform-noncritical/terragrunt.stack.hcl`): The stack entrypoint that composes deployable units and sets stack-specific overrides such as `environment = "dev"`.
+5.  **Unit Layer** (`live/units/aca-app/terragrunt.hcl`): The reusable Terragrunt wrapper that maps stack `values` into Terraform inputs and dependencies.
 
-Terragrunt uses the environment stack to generate deployable units. Those units read `region.hcl` from their generated location and receive the environment name from stack values.
+Terragrunt uses each stack's `terragrunt.stack.hcl` to generate deployable units. Those units read `region.hcl` from their generated location and receive the environment name from stack values.
 We separate the **Platform** from the **Application**:
 - **Landlord (`aca-env`)**: Responsible for the Resource Group and the Container App Environment. It "owns" the land.
-- **Tenant (`myapp-1`, `myapp-2`, etc.)**: Responsible for the container image and settings. It "rents" space in the Landlord's environment.
+- **Tenant (`myapp-1`, `myapp-3`, etc.)**: Responsible for the container image and settings. It "rents" space in the Landlord's environment.
 
 ### Deployment Flow
-When you run `terragrunt stack generate` and `terragrunt run --all apply` from an environment root:
-1.  Terragrunt reads the `terragrunt.stack.hcl`.
-2.  It generates deployable unit directories such as `aca-env/`, `myapp-1/`, and `myapp-2/`.
+When you run `terragrunt stack generate` and `terragrunt run --all apply` from a stack root such as `live/non-prod/westeurope/dev/platform-noncritical`:
+1.  Terragrunt reads that stack's `terragrunt.stack.hcl`.
+2.  It generates deployable unit directories such as `rg/`, `storage-account/`, and `aca-env/` for a platform stack, or `app/` for an app stack.
 3.  Each generated unit includes `root.hcl` to set up the Azure backend and provider.
 4.  Each generated unit resolves `dependencies` (for example, `myapp-1` fetching IDs from `aca-env`).
 5.  Terragrunt invokes the Terraform module defined by the unit wrapper under `modules/`.

@@ -13,14 +13,17 @@ The `live/` directory is organized into the following hierarchy:
 ```text
 live/
 ├── units/
+│   ├── aca-app/terragrunt.hcl
 │   ├── aca-env/terragrunt.hcl
-│   └── aca-app/terragrunt.hcl
-└── [environment-group] / [region] / [environment]
+│   ├── rg/terragrunt.hcl
+│   └── storage-account/terragrunt.hcl
+└── [environment-group] / [region] / [environment] / [stack]
 ```
 
 *   **Top-Level Environment Group (`live/non-prod/`, `live/prod/`):** Represents the highest isolation boundary in this repo. It contains a `backend.hcl` file with the Terraform state backend coordinates for that group.
 *   **Region (`westeurope/`):** Represents the physical Azure region where resources are deployed. Contains a `region.hcl` file.
-*   **Environment (`dev/`, `prod/`):** The logical deployment stage. Contains a `terragrunt.stack.hcl` entrypoint.
+*   **Environment (`dev/`, `prod/`):** The logical deployment stage. Contains one folder per deployable stack.
+*   **Stack (`platform-noncritical/`, `myapp-1/`):** The deployment entrypoint. Each stack folder contains its own `terragrunt.stack.hcl`.
 *   **Unit Definitions (`live/units/`):** Reusable Terragrunt unit wrappers that map stack `values` into Terraform module inputs and dependencies.
 
 ### Example Layout
@@ -28,37 +31,52 @@ live/
 ```text
 live/
 ├── units/
+│   ├── aca-app/
+│   │   └── terragrunt.hcl      # Shared app unit wrapper
 │   ├── aca-env/
-│   │   └── terragrunt.hcl      # Shared app environment unit wrapper
-│   └── aca-app/
-│       └── terragrunt.hcl      # Shared app unit wrapper
+│   │   └── terragrunt.hcl      # Shared platform environment wrapper
+│   ├── rg/
+│   │   └── terragrunt.hcl      # Shared resource group wrapper
+│   └── storage-account/
+│       └── terragrunt.hcl      # Shared storage account wrapper
 ├── non-prod/
 │   ├── backend.hcl              # Defines state backend settings for non-prod
 │   └── westeurope/
 │       ├── region.hcl           # Defines location = "westeurope"
 │       ├── dev/
-│       │   └── terragrunt.stack.hcl
+│       │   ├── platform-noncritical/
+│       │   │   └── terragrunt.stack.hcl
+│       │   └── myapp-1/
+│       │       └── terragrunt.stack.hcl
 └── prod/
     ├── backend.hcl              # Defines state backend settings for prod
     ├── westeurope/
     │   ├── region.hcl           # Defines location = "westeurope"
     │   └── prod/
-    │       └── terragrunt.stack.hcl
+    │       ├── platform-noncritical/
+    │       │   └── terragrunt.stack.hcl
+    │       └── myapp-1/
+    │           └── terragrunt.stack.hcl
 ```
 
 ## How It Works
 
 1.  **Isolated State Files:** Every generated unit still gets its own isolated Terraform state file in the Azure Storage backend based on its final path (for example `live/non-prod/westeurope/dev/myapp-1/terraform.tfstate`). This physically limits the blast radius: a destructive command run in `dev` cannot corrupt the `prod` state file.
-2.  **Shared Unit Logic:** Environment-level `terragrunt.stack.hcl` files compose shared Terragrunt unit wrappers from `live/units/`. Those units read `region.hcl` from their generated location, while the environment name is passed explicitly from the stack file.
+2.  **Shared Unit Logic:** Stack-level `terragrunt.stack.hcl` files compose shared Terragrunt unit wrappers from `live/units/`. Those units read `region.hcl` from their generated location, while the environment name is passed explicitly from the stack file.
 3.  **Platform vs. Application Separation (Landlord/Tenant Model):** We strictly separate the underlying shared environment from the applications that run on it.
     *   **The App Environment (`aca-env`):** Acts as the "Landlord." It is deployed once per environment/region and provisions the shared foundation: the Resource Group, the Log Analytics Workspace, and the Container App Environment (the server cluster). In this repo, those resources currently use the shared stack token `platform-noncritical`.
-    *   **The Application units (`myapp-1`, `myapp-2`, etc.):** Act as the "Tenants." Each unit represents a single microservice. Each one uses a Terragrunt `dependency` block to ask the platform for its IDs, and then deploys a specific container image into that shared cluster. 
+    *   **The Application units (`myapp-1`, `myapp-3`, etc.):** Act as the "Tenants." Each unit represents a single microservice. Each one uses a Terragrunt `dependency` block to ask the platform for its IDs, and then deploys a specific container image into that shared cluster. 
     
-    *Example:* If you need to add a second microservice (e.g., `user-api`), you add another unit to the environment stack next to the others. It will automatically deploy into the existing `aca-env`, significantly reducing Azure costs and simplifying architecture:
+    *Example:* If you need to add a second microservice (e.g., `user-api`), you add another stack folder next to the others. It will deploy into the existing `aca-env`, significantly reducing Azure costs and simplifying architecture:
 
     ```text
     live/non-prod/westeurope/dev/
-    └── terragrunt.stack.hcl     <-- Defines aca-env, myapp-1, myapp-2, user-api units
+    ├── platform-noncritical/
+    │   └── terragrunt.stack.hcl
+    ├── myapp-1/
+    │   └── terragrunt.stack.hcl
+    └── user-api/
+        └── terragrunt.stack.hcl
     ```
 
 ---
@@ -75,7 +93,8 @@ If you need to deploy the `prod` environment for `myapp-1` to a new region beyon
 Navigate to the appropriate subscription (e.g., `prod`) and create the new region folder, followed by the environment folder.
 
 ```bash
-mkdir -p live/prod/northeurope/prod
+mkdir -p live/prod/northeurope/prod/platform-noncritical
+mkdir -p live/prod/northeurope/prod/myapp-1
 ```
 
 **Step 2: Create the `region.hcl` file.**
@@ -92,17 +111,18 @@ locals {
 Copy the existing stack file from the old region to the new region.
 
 ```bash
-cp live/prod/westeurope/prod/terragrunt.stack.hcl live/prod/northeurope/prod/
+cp live/prod/westeurope/prod/platform-noncritical/terragrunt.stack.hcl live/prod/northeurope/prod/platform-noncritical/
+cp live/prod/westeurope/prod/myapp-1/terragrunt.stack.hcl live/prod/northeurope/prod/myapp-1/
 ```
 
 **Step 4: Ensure the region short code exists.**
 The naming logic depends on `location_short` from `region.hcl`, so add the right short code for the new region.
 
 **Step 5: Deploy.**
-Navigate to the new environment root and apply. Terragrunt will automatically handle both stacks and create isolated state files.
+Navigate to the new stack root and apply. Terragrunt will automatically handle that stack and create isolated state files.
 
 ```bash
-cd live/prod/northeurope/prod
+cd live/prod/northeurope/prod/platform-noncritical
 terragrunt stack generate
 terragrunt run --all --non-interactive init
 terragrunt run --all --non-interactive apply -- -auto-approve -no-color
@@ -119,10 +139,10 @@ If you no longer need an environment or region, **do not simply delete the folde
 To safely decommission an environment, follow this two-step process:
 
 ### Step 1: Destroy the infrastructure in Azure
-Before removing any code, navigate into the specific environment root and instruct Terragrunt to destroy the physical resources.
+Before removing any code, navigate into the specific stack root and instruct Terragrunt to destroy the physical resources.
 
 ```bash
-cd live/prod/westeurope/prod
+cd live/prod/westeurope/prod/platform-noncritical
 terragrunt run --all --non-interactive destroy -- -auto-approve -no-color
 ```
 *Terragrunt will read the state file, determine exactly what resources exist in Azure, and safely delete them.*

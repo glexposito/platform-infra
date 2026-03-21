@@ -25,6 +25,6 @@ remote_state {
     resource_group_name  = local.state_resource_group
     storage_account_name = local.state_storage_account
     container_name       = local.state_container
-    key                  = "${path_relative_to_include()}/terraform.tfstate"
+    key                  = "platform/${path_relative_to_include()}/terraform.tfstate"
   }
 }

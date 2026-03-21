@@ -25,7 +25,7 @@ Azure resource names follow this pattern:
 Current conventions in this repo:
 
 - shared stack token: `platform-noncritical`
-- app tokens: `myapp-1` and `myapp-2` in `dev`, `myapp-1` in `prod`
+- app tokens: `myapp-1` and `myapp-3` in `dev`, `myapp-1` in `prod`
 - region code: `weu`
 
 `live` is a standard Terragrunt convention. It means these stacks are the concrete deployments, not reusable building blocks.
@@ -53,19 +53,23 @@ Official references:
 
 ## Terraform State
 
-Terraform state is stored in Azure Storage using the `azurerm` backend from the root [root.hcl](/home/guille/dev/aca-infra/root.hcl).
+Terraform state is stored in Azure Storage using the `azurerm` backend from the root [root.hcl](/home/guille/dev/platform-infra/root.hcl).
 
 Each environment gets a separate state key based on the stack path:
 
-- `live/non-prod/westeurope/dev/aca-env/terraform.tfstate`
+- `live/non-prod/westeurope/dev/platform-noncritical/rg/terraform.tfstate`
+- `live/non-prod/westeurope/dev/platform-noncritical/storage-account/terraform.tfstate`
+- `live/non-prod/westeurope/dev/platform-noncritical/aca-env/terraform.tfstate`
 - `live/non-prod/westeurope/dev/myapp-1/terraform.tfstate`
-- `live/non-prod/westeurope/dev/myapp-2/terraform.tfstate`
-- `live/prod/westeurope/prod/aca-env/terraform.tfstate`
+- `live/non-prod/westeurope/dev/myapp-3/terraform.tfstate`
+- `live/prod/westeurope/prod/platform-noncritical/rg/terraform.tfstate`
+- `live/prod/westeurope/prod/platform-noncritical/storage-account/terraform.tfstate`
+- `live/prod/westeurope/prod/platform-noncritical/aca-env/terraform.tfstate`
 - `live/prod/westeurope/prod/myapp-1/terraform.tfstate`
 
-The backend values are versioned in `live/*/backend.hcl` and read by the root [root.hcl](/home/guille/dev/aca-infra/root.hcl).
+The backend values are versioned in `live/*/backend.hcl` and read by the root [root.hcl](/home/guille/dev/platform-infra/root.hcl).
 
-This repo includes [init-azure-state.sh](/home/guille/dev/aca-infra/scripts/init-azure-state.sh) to bootstrap the backend resource group, storage account, and blob container.
+This repo includes [init-azure-state.sh](/home/guille/dev/platform-infra/scripts/init-azure-state.sh) to bootstrap the backend resource group, storage account, and blob container.
 
 Example:
 
@@ -92,7 +96,7 @@ Microsoft Learn backend reference:
 
 ## Quick Start Script
 
-This repo includes [init-azure-oidc.sh](/home/guille/dev/aca-infra/scripts/init-azure-oidc.sh) to bootstrap the Microsoft Entra app, service principal, Azure role assignment, and GitHub OIDC federated credential.
+This repo includes [init-azure-oidc.sh](/home/guille/dev/platform-infra/scripts/init-azure-oidc.sh) to bootstrap the Microsoft Entra app, service principal, Azure role assignment, and GitHub OIDC federated credential.
 
 Required environment variables:
 
@@ -103,7 +107,7 @@ Required environment variables:
 
 Common optional environment variables:
 
-- `APP_NAME` default: `aca-infra-gha`
+- `APP_NAME` default: `platform-infra-gha`
 - `ENV_NAME` default: `dev`
 - `ROLE_NAME` default: `Contributor`
 - `ROLE_SCOPE` default: `/subscriptions/$AZURE_SUBSCRIPTION_ID`
@@ -152,7 +156,7 @@ Decide the narrowest Azure scope this deployment identity needs:
 
 The current repo assumes the backend already exists.
 
-If you want the fast path, use [init-azure-state.sh](/home/guille/dev/aca-infra/scripts/init-azure-state.sh). The manual commands below are the equivalent fallback.
+If you want the fast path, use [init-azure-state.sh](/home/guille/dev/platform-infra/scripts/init-azure-state.sh). The manual commands below are the equivalent fallback.
 
 Example:
 
@@ -197,7 +201,7 @@ Then copy these values into the relevant `backend.hcl` file:
 Example:
 
 ```bash
-az ad app create --display-name aca-infra-github
+az ad app create --display-name platform-infra-github
 ```
 
 Capture the returned:
@@ -271,8 +275,8 @@ repo:<owner>/<repo>:environment:<environment-name>
 
 Examples:
 
-- `repo:glexposito/aca-infra:environment:dev`
-- `repo:glexposito/aca-infra:environment:prod-weu`
+- `repo:glexposito/platform-infra:environment:dev`
+- `repo:glexposito/platform-infra:environment:prod-weu`
 
 Create one federated credential per environment.
 
@@ -362,7 +366,7 @@ Before testing GitHub Actions, test locally with your Azure account:
 az login
 az account set --subscription "<subscription-id>"
 
-cd live/non-prod/westeurope/dev
+cd live/non-prod/westeurope/dev/platform-noncritical
 terragrunt stack generate
 terragrunt run --all --non-interactive init
 terragrunt run --all --non-interactive plan -- -no-color
@@ -372,12 +376,10 @@ If local `plan` works, test GitHub Actions against `dev` first.
 
 ## Workflow Usage
 
-The workflow is manual-only and `workflow_dispatch` supports:
+The workflows are manual-only and `workflow_dispatch` supports:
 
-- `targets=dev`
-- `targets=prod-weu`
-
-The workflow intentionally rejects `apply` when a `prod-*` target is mixed with other environments.
+- `provision-platform.yml`: `environment=dev|prod-weu`, `command=plan|apply`
+- `deploy-app.yml`: `environment=dev|prod-weu`, `app=<stack-folder>`, `command=plan|apply`
 
 Within a single workflow job, Terragrunt stores per-unit plan files using `--out-dir` during the `plan` step, and the `apply` step reuses those saved plans instead of recalculating them.
 
@@ -405,6 +407,7 @@ Relevant references:
 
 - GitHub Actions runners are ephemeral, so `terragrunt init` must run on every workflow execution.
 - `init` does not recreate Azure resources. It initializes the backend, providers, and working directory for that run.
-- The workflow runs from the environment root and uses `terragrunt run --all --non-interactive ...` so `aca-env` is applied before the app units.
+- The platform workflow runs from the stack root and uses `terragrunt run --all --non-interactive ...`, so `rg`, `storage-account`, and `aca-env` are applied in dependency order.
+- The app workflow runs from the app stack root and applies only that stack's generated units.
 - If `acr_id` is used, the deployment identity needs enough permission to create the `AcrPull` role assignment.
 - This repository is a PoC. For quick resets in a disposable test subscription, it can be reasonable to delete both Azure resources and matching backend state for `dev`, but that is not a safe practice for persistent environments.

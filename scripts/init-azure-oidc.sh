@@ -13,7 +13,7 @@ Required environment variables:
   GITHUB_REPO             GitHub repository name
 
 Optional environment variables:
-  APP_NAME                Entra app display name (default: aca-infra-gha)
+  APP_NAME                Entra app display name (default: platform-infra-gha)
   ENV_NAME                GitHub environment name (default: dev)
   ROLE_NAME               Azure role to assign (default: Contributor)
   ROLE_SCOPE              Azure scope for the role assignment
@@ -24,7 +24,7 @@ Example:
   export AZURE_SUBSCRIPTION_ID="0521a568-1fab-426a-ba4f-573ef36bdc32"
   export AZURE_TENANT_ID="6aa594d3-8fa6-499c-9eb0-74286d7d005d"
   export GITHUB_OWNER="glexposito"
-  export GITHUB_REPO="aca-infra"
+  export GITHUB_REPO="platform-infra"
   export ENV_NAME="dev"
   ./scripts/init-azure-oidc.sh
 EOF
@@ -40,7 +40,7 @@ fi
 : "${GITHUB_OWNER:?Set GITHUB_OWNER first}"
 : "${GITHUB_REPO:?Set GITHUB_REPO first}"
 
-APP_NAME="${APP_NAME:-aca-infra-gha}"
+APP_NAME="${APP_NAME:-platform-infra-gha}"
 ENV_NAME="${ENV_NAME:-dev}"
 ROLE_NAME="${ROLE_NAME:-Contributor}"
 ROLE_SCOPE="${ROLE_SCOPE:-/subscriptions/${AZURE_SUBSCRIPTION_ID}}"

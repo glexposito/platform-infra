@@ -5,11 +5,22 @@ locals {
     managed_by  = "terraform"
   }
   tags = merge(var.tags, local.default_tags)
+  resolved_container_app_environment_id = coalesce(
+    var.container_app_environment_id,
+    data.azurerm_container_app_environment.existing[0].id
+  )
+}
+
+data "azurerm_container_app_environment" "existing" {
+  count = var.container_app_environment_id == null ? 1 : 0
+
+  name                = var.container_app_environment_name
+  resource_group_name = var.resource_group_name
 }
 
 resource "azurerm_container_app" "this" {
   name                         = var.container_app_name
-  container_app_environment_id = var.container_app_environment_id
+  container_app_environment_id = local.resolved_container_app_environment_id
   resource_group_name          = var.resource_group_name
   revision_mode                = var.revision_mode
   tags                         = local.tags

@@ -3,7 +3,7 @@ include "root" {
 }
 
 locals {
-  region_vars     = read_terragrunt_config("${get_terragrunt_dir()}/../../../region.hcl")
+  region_vars     = read_terragrunt_config("${get_terragrunt_dir()}/../../../../region.hcl")
   app_name        = values.name
   environment     = values.environment
   location        = local.region_vars.locals.location
@@ -29,18 +29,19 @@ dependency "platform" {
 }
 
 inputs = {
-  container_app_environment_id = try(values.container_app_environment_id, dependency.platform.outputs.container_app_environment_id)
-  resource_group_name          = try(values.resource_group_name, dependency.platform.outputs.resource_group_name)
-  location                     = local.location
-  environment                  = local.environment
-  name                         = local.app_name
-  container_app_name           = "ca-${local.app_name}-${local.environment}-${local.location_short}"
-  container_name               = local.app_name
-  container_image              = values.container_image
-  registry_server              = try(values.registry_server, null)
-  acr_id                       = try(values.acr_id, null)
-  min_replicas                 = try(values.min_replicas, 1)
-  max_replicas                 = try(values.max_replicas, 1)
+  container_app_environment_id   = try(values.container_app_environment_id, dependency.platform.outputs.container_app_environment_id)
+  container_app_environment_name = try(values.container_app_environment_name, null)
+  resource_group_name            = try(values.resource_group_name, dependency.platform.outputs.resource_group_name)
+  location                       = local.location
+  environment                    = local.environment
+  name                           = local.app_name
+  container_app_name             = "ca-${local.app_name}-${local.environment}-${local.location_short}"
+  container_name                 = local.app_name
+  container_image                = values.container_image
+  registry_server                = try(values.registry_server, null)
+  acr_id                         = try(values.acr_id, null)
+  min_replicas                   = try(values.min_replicas, 1)
+  max_replicas                   = try(values.max_replicas, 1)
   environment_variables = merge(
     {
       APP_ENV = local.environment

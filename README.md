@@ -20,6 +20,10 @@ live/
 ├── units/
 │   ├── aca-env/
 │   │   └── terragrunt.hcl
+│   ├── rg/
+│   │   └── terragrunt.hcl
+│   ├── storage-account/
+│   │   └── terragrunt.hcl
 │   └── aca-app/
 │       └── terragrunt.hcl
 ├── non-prod/
@@ -27,13 +31,21 @@ live/
 │   └── westeurope/
 │       ├── region.hcl
 │       └── dev/
-│           └── terragrunt.stack.hcl
+│           ├── platform-noncritical/
+│           │   └── terragrunt.stack.hcl
+│           ├── myapp-1/
+│           │   └── terragrunt.stack.hcl
+│           └── myapp-3/
+│               └── terragrunt.stack.hcl
 └── prod/
     ├── backend.hcl
     └── westeurope/
         ├── region.hcl
         └── prod/
-            └── terragrunt.stack.hcl
+            ├── platform-noncritical/
+            │   └── terragrunt.stack.hcl
+            └── myapp-1/
+                └── terragrunt.stack.hcl
 ```
 
 ### Documentation
@@ -53,20 +65,22 @@ Azure naming conventions are generated dynamically from the shared stack token, 
 - Shared Log Analytics workspace: `law-<shared-stack>-<env>-<region>`
 - Application Container App: `ca-<app>-<env>-<region>`
 
-*Current app tokens in live config: `myapp-1` and `myapp-2` in `dev`, `myapp-1` in `prod`. Current shared environment stack token: `platform-noncritical`. Current region shortcode in use: `weu` for West Europe.*
+*Current app tokens in live config: `myapp-1` and `myapp-3` in `dev`, `myapp-1` in `prod`. Current shared environment stack token: `platform-noncritical`. Current region shortcode in use: `weu` for West Europe.*
 
 ## Terragrunt Composition
 
 Reusable Terragrunt unit logic lives in:
 
+- `live/units/rg/terragrunt.hcl`
+- `live/units/storage-account/terragrunt.hcl`
 - `live/units/aca-env/terragrunt.hcl`
 - `live/units/aca-app/terragrunt.hcl`
 
-Each environment now has a small `terragrunt.stack.hcl` file that composes those shared units and passes only per-environment overrides such as the stack name, retention period, image registry settings, or replica counts.
+Each environment now has one stack folder per deployable unit, such as `platform-noncritical/` for the shared foundation and one folder per app. The platform stack composes the shared foundation units, while each app stack targets a single app deployment against an existing Container Apps environment.
 
 The unit wrappers derive region and environment context from the generated unit location by reading:
 
-- `../../../region.hcl`
+- `../../../../region.hcl`
 
 The environment name itself is passed explicitly from each `terragrunt.stack.hcl` file, which keeps the layout small and avoids an extra `env.hcl` file per environment.
 
@@ -103,10 +117,20 @@ secret_environment_variables = {
 
 ## Example Usage
 
-For full environment deployment, run from the environment root so Terragrunt can generate and apply `aca-env` before the app units:
+For aggregate platform deployment, run from the platform root:
 
 ```bash
-cd live/non-prod/westeurope/dev
+cd live/non-prod/westeurope/dev/platform-noncritical
+terragrunt stack generate
+terragrunt run --all --non-interactive init
+terragrunt run --all --non-interactive plan -- -no-color
+terragrunt run --all --non-interactive apply -- -auto-approve -no-color
+```
+
+For a single app deployment, run from that app root:
+
+```bash
+cd live/non-prod/westeurope/dev/myapp-1
 terragrunt stack generate
 terragrunt run --all --non-interactive init
 terragrunt run --all --non-interactive plan -- -no-color
@@ -115,9 +139,13 @@ terragrunt run --all --non-interactive apply -- -auto-approve -no-color
 
 ## GitHub Actions CI/CD
 
-The workflow is located in [`.github/workflows/provision-myapp-infra.yml`](.github/workflows/provision-myapp-infra.yml).
+The workflows are located in:
 
-- **Manual Dispatch**: Supports running `plan` or `apply` against specific environments such as `dev` or `prod-weu`.
+- [`.github/workflows/provision-platform.yml`](.github/workflows/provision-platform.yml)
+- [`.github/workflows/deploy-app.yml`](.github/workflows/deploy-app.yml)
+
+- **Platform workflow**: runs `plan` or `apply` against the platform stack for `dev` or `prod-weu`
+- **App workflow**: runs `plan` or `apply` for a single app/environment pair
 
 ### Required GitHub Secrets
 

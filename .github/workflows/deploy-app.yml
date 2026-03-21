@@ -1,0 +1,149 @@
+name: Deploy App
+run-name: ${{ inputs.command }} ${{ inputs.app }} (${{ inputs.environment }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod-weu
+      app:
+        description: "App to deploy"
+        required: true
+        type: string
+      command:
+        description: "Terragrunt command"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TERRAFORM_VERSION: "1.14.7"
+  TERRAGRUNT_VERSION: "0.99.4"
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      environment_name: ${{ steps.resolve.outputs.environment_name }}
+      app_name: ${{ steps.resolve.outputs.app_name }}
+      working_dir: ${{ steps.resolve.outputs.working_dir }}
+    steps:
+      - name: Resolve app path
+        id: resolve
+        env:
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+          INPUT_APP: ${{ inputs.app }}
+        run: |
+          python3 <<'PY' >> "$GITHUB_OUTPUT"
+          import os
+          import pathlib
+          import sys
+
+          env = os.environ["INPUT_ENVIRONMENT"]
+          app = os.environ["INPUT_APP"].strip()
+
+          if not app:
+            print("App input cannot be empty.", file=sys.stderr)
+            sys.exit(1)
+
+          if "/" in app or app.startswith("."):
+            print(f"Invalid app name: {app}", file=sys.stderr)
+            sys.exit(1)
+
+          if app.startswith("platform"):
+            print(f"App workflow cannot target platform stack: {app}", file=sys.stderr)
+            sys.exit(1)
+
+          env_roots = {
+              "dev": ("dev", pathlib.Path("live/non-prod/westeurope/dev")),
+              "prod-weu": ("prod-weu", pathlib.Path("live/prod/westeurope/prod")),
+          }
+
+          if env not in env_roots:
+            print(f"Unsupported environment: {env}", file=sys.stderr)
+            sys.exit(1)
+
+          environment_name, root = env_roots[env]
+          working_dir = root / app
+
+          if not working_dir.is_dir():
+            print(f"App stack does not exist: {working_dir}", file=sys.stderr)
+            sys.exit(1)
+
+          if not (working_dir / "terragrunt.stack.hcl").is_file():
+            print(f"Missing terragrunt.stack.hcl in {working_dir}", file=sys.stderr)
+            sys.exit(1)
+
+          app_name = app
+          print(f"environment_name={environment_name}")
+          print(f"app_name={app_name}")
+          print(f"working_dir={working_dir}")
+          PY
+
+  deploy:
+    needs: resolve
+    runs-on: ubuntu-latest
+    name: Deploy App (${{ needs.resolve.outputs.app_name }} / ${{ needs.resolve.outputs.environment_name }})
+    environment: ${{ needs.resolve.outputs.environment_name }}
+    concurrency:
+      group: app-deploy-${{ needs.resolve.outputs.environment_name }}-${{ needs.resolve.outputs.app_name }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ needs.resolve.outputs.working_dir }}
+    env:
+      ARM_USE_OIDC: true
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TG_PLAN_DIR: ${{ github.workspace }}/.terragrunt-plans/apps/${{ needs.resolve.outputs.environment_name }}/${{ needs.resolve.outputs.app_name }}
+      STATUSPAGE_API_KEY: ${{ secrets.STATUSPAGE_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Azure login
+        uses: azure/login@v2.3.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4.0.0
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Setup Terragrunt
+        uses: jdx/mise-action@v4.0.0
+        with:
+          version: 2026.3.9
+          tool_versions: |
+            terragrunt ${{ env.TERRAGRUNT_VERSION }}
+
+      - name: Terragrunt stack generate
+        run: terragrunt stack generate
+
+      - name: Terragrunt init
+        run: terragrunt run --all --non-interactive init
+
+      - name: Terragrunt plan
+        run: |
+          mkdir -p "$TG_PLAN_DIR"
+          terragrunt run --all --non-interactive --out-dir "$TG_PLAN_DIR" plan -- -no-color
+
+      - name: Terragrunt apply
+        if: inputs.command == 'apply'
+        run: terragrunt run --all --non-interactive --out-dir "$TG_PLAN_DIR" apply -- -auto-approve -no-color

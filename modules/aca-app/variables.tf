@@ -16,6 +16,21 @@ variable "resource_group_name" {
 variable "container_app_environment_id" {
   description = "The ID of the Container App Environment to deploy into."
   type        = string
+  default     = null
+}
+
+variable "container_app_environment_name" {
+  description = "The name of the Container App Environment to deploy into when the full ID is not provided."
+  type        = string
+  default     = null
+
+  validation {
+    condition = (
+      (var.container_app_environment_id != null && var.container_app_environment_name == null) ||
+      (var.container_app_environment_id == null && var.container_app_environment_name != null)
+    )
+    error_message = "Define exactly one of container_app_environment_id or container_app_environment_name."
+  }
 }
 
 variable "container_app_name" {

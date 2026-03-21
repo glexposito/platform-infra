@@ -1,0 +1,115 @@
+name: Provision Platform
+run-name: ${{ inputs.command }} platform-noncritical (${{ inputs.environment }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod-weu
+      command:
+        description: "Terragrunt command"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TERRAFORM_VERSION: "1.14.7"
+  TERRAGRUNT_VERSION: "0.99.4"
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      environment_name: ${{ steps.resolve.outputs.environment_name }}
+      working_dir: ${{ steps.resolve.outputs.working_dir }}
+    steps:
+      - name: Resolve platform path
+        id: resolve
+        env:
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          python3 <<'PY' >> "$GITHUB_OUTPUT"
+          import os
+          import sys
+
+          env = os.environ["INPUT_ENVIRONMENT"]
+          mapping = {
+              "dev": ("dev", "live/non-prod/westeurope/dev/platform-noncritical"),
+              "prod-weu": ("prod-weu", "live/prod/westeurope/prod/platform-noncritical"),
+          }
+
+          if env not in mapping:
+            print(f"Unsupported environment: {env}", file=sys.stderr)
+            sys.exit(1)
+
+          environment_name, working_dir = mapping[env]
+          print(f"environment_name={environment_name}")
+          print(f"working_dir={working_dir}")
+          PY
+
+  deploy:
+    needs: resolve
+    runs-on: ubuntu-latest
+    name: Deploy Platform (${{ needs.resolve.outputs.environment_name }})
+    environment: ${{ needs.resolve.outputs.environment_name }}
+    concurrency:
+      group: platform-deploy-${{ needs.resolve.outputs.environment_name }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ needs.resolve.outputs.working_dir }}
+    env:
+      ARM_USE_OIDC: true
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TG_PLAN_DIR: ${{ github.workspace }}/.terragrunt-plans/platform/${{ needs.resolve.outputs.environment_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Azure login
+        uses: azure/login@v2.3.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4.0.0
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Setup Terragrunt
+        uses: jdx/mise-action@v4.0.0
+        with:
+          version: 2026.3.9
+          tool_versions: |
+            terragrunt ${{ env.TERRAGRUNT_VERSION }}
+
+      - name: Terragrunt stack generate
+        run: terragrunt stack generate
+
+      - name: Terragrunt init
+        run: terragrunt run --all --non-interactive init
+
+      - name: Terragrunt plan
+        run: |
+          mkdir -p "$TG_PLAN_DIR"
+          terragrunt run --all --non-interactive --out-dir "$TG_PLAN_DIR" plan -- -no-color
+
+      - name: Terragrunt apply
+        if: inputs.command == 'apply'
+        run: terragrunt run --all --non-interactive --out-dir "$TG_PLAN_DIR" apply -- -auto-approve -no-color
