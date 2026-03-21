@@ -29,9 +29,9 @@ dependency "platform" {
 }
 
 inputs = {
-  container_app_environment_id   = try(values.container_app_environment_id, dependency.platform.outputs.container_app_environment_id)
+  container_app_environment_id   = try(values.container_app_environment_id, local.use_platform_dependency ? dependency.platform.outputs.container_app_environment_id : null)
   container_app_environment_name = try(values.container_app_environment_name, null)
-  resource_group_name            = try(values.resource_group_name, dependency.platform.outputs.resource_group_name)
+  resource_group_name            = try(values.resource_group_name, local.use_platform_dependency ? dependency.platform.outputs.resource_group_name : null)
   location                       = local.location
   environment                    = local.environment
   name                           = local.app_name
