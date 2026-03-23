@@ -20,11 +20,5 @@ unit "myapp-1" {
     container_app_environment_name = local.container_app_environment_name
     min_replicas                   = 1
     max_replicas                   = 1
-    secret_environment_variables = {
-      TEST_SECRET = {
-        secret_name  = "test-secret"
-        secret_value = trimspace(get_env("ARM_TENANT_ID", ""))
-      }
-    }
   }
 }

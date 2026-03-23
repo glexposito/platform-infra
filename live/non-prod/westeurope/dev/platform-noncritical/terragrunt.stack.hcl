@@ -12,19 +12,6 @@ unit "rg" {
   }
 }
 
-unit "storage-account" {
-  source = "${local.root_dir}/live/units/storage-account"
-  path   = "storage-account"
-
-  values = {
-    environment          = "dev"
-    resource_group_path  = "../rg"
-    name                 = "platform-noncritical"
-    storage_account_name = "stplatformnoncdevweu"
-    containers           = ["tfstate"]
-  }
-}
-
 unit "aca-env" {
   source = "${local.root_dir}/live/units/aca-env"
   path   = "aca-env"
