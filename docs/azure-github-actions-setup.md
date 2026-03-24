@@ -18,9 +18,8 @@ Required configuration:
 
 Recommended:
 
-1. Create GitHub Environments `dev` and `prod-weu`.
-2. Add approvals for `prod-weu`.
-3. Scope federated credentials to those environments.
+1. Create a GitHub Environment `dev`.
+2. Scope federated credentials to that environment.
 
 ## Bootstrap
 

@@ -10,7 +10,6 @@ on:
         type: choice
         options:
           - dev
-          - prod-weu
       app:
         description: "App to deploy"
         required: true
@@ -71,7 +70,6 @@ jobs:
 
           env_roots = {
               "dev": ("dev", pathlib.Path("live/non-prod/westeurope/dev")),
-              "prod-weu": ("prod-weu", pathlib.Path("live/prod/westeurope/prod")),
           }
 
           if env not in env_roots:

@@ -24,11 +24,6 @@ live/
 │           ├── platform-noncritical/
 │           ├── myapp-1/
 │           └── myapp-3/
-└── prod/
-    └── westeurope/
-        └── prod/
-            ├── platform-noncritical/
-            └── myapp-1/
 ```
 
 Reusable Terraform modules live in `modules/`. Reusable Terragrunt wrappers live in `live/units/`.
@@ -104,9 +99,8 @@ Required GitHub configuration:
 
 Recommended setup:
 
-1. Create GitHub Environments named `dev` and `prod-weu`.
-2. Add approvals for `prod-weu`.
-3. Configure Azure federated credentials for those GitHub Environments.
+1. Create a GitHub Environment named `dev`.
+2. Configure Azure federated credentials for that GitHub Environment.
 
 ## Docs
 

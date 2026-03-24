@@ -2,9 +2,9 @@
 
 The live layout is intentionally small:
 
-- environment group: `live/non-prod`, `live/prod`
+- environment group: `live/non-prod`
 - region: `westeurope`
-- environment: `dev`, `prod`
+- environment: `dev`
 - stack: `platform-noncritical`, `myapp-*`
 - reusable units: `live/units/*`
 

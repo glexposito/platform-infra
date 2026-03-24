@@ -3,39 +3,26 @@ include "root" {
 }
 
 locals {
-  region_vars     = read_terragrunt_config("${get_terragrunt_dir()}/../../../../region.hcl")
-  app_name        = values.name
-  environment     = values.environment
-  location        = local.region_vars.locals.location
-  location_short  = local.region_vars.locals.location_short
-  use_platform_dependency = try(values.platform_path, null) != null
+  env_vars       = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  region_vars    = read_terragrunt_config("${get_terragrunt_dir()}/../../../../region.hcl")
+  app_name       = values.name
+  environment    = try(values.environment, local.env_vars.locals.environment)
+  location       = local.region_vars.locals.location
+  location_short = local.region_vars.locals.location_short
 }
 
 terraform {
   source = "${dirname(find_in_parent_folders("root.hcl"))}/modules/aca-app"
 }
 
-dependency "platform" {
-  config_path = try(values.platform_path, "")
-  enabled     = local.use_platform_dependency
-
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "output"]
-  mock_outputs_merge_strategy_with_state  = "shallow"
-
-  mock_outputs = {
-    container_app_environment_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.App/managedEnvironments/mock-cae"
-    resource_group_name          = "mock-rg"
-  }
-}
-
 inputs = {
-  container_app_environment_id   = try(values.container_app_environment_id, local.use_platform_dependency ? dependency.platform.outputs.container_app_environment_id : null)
+  container_app_environment_id   = try(values.container_app_environment_id, null)
   container_app_environment_name = try(values.container_app_environment_name, null)
-  resource_group_name            = try(values.resource_group_name, local.use_platform_dependency ? dependency.platform.outputs.resource_group_name : null)
+  resource_group_name            = values.resource_group_name
   location                       = local.location
   environment                    = local.environment
   name                           = local.app_name
-  container_app_name             = "ca-${local.app_name}-${local.environment}-${local.location_short}"
+  container_app_name             = try(values.container_app_name, "ca-${local.app_name}-${local.environment}-${local.location_short}")
   container_name                 = local.app_name
   container_image                = values.container_image
   registry_server                = try(values.registry_server, null)

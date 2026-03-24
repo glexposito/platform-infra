@@ -10,7 +10,6 @@ on:
         type: choice
         options:
           - dev
-          - prod-weu
       command:
         description: "Terragrunt command"
         required: true
@@ -47,7 +46,6 @@ jobs:
           env = os.environ["INPUT_ENVIRONMENT"]
           mapping = {
               "dev": ("dev", "live/non-prod/westeurope/dev/platform-noncritical"),
-              "prod-weu": ("prod-weu", "live/prod/westeurope/prod/platform-noncritical"),
           }
 
           if env not in mapping:
