@@ -7,7 +7,7 @@ This repo uses Terraform for Azure resources and Terragrunt for stack compositio
 Terraform owns the actual infrastructure:
 
 - [modules/aca-environment](/home/guille/dev/platform-infra/modules/aca-environment) creates the Log Analytics workspace and Container Apps environment
-- [modules/aca-app](/home/guille/dev/platform-infra/modules/aca-app) creates one Container App and optional `AcrPull` role assignment
+- [modules/aca-app](/home/guille/dev/platform-infra/modules/aca-app) creates one Container App with optional ingress, liveness/readiness/startup probes, secrets, and optional `AcrPull` role assignment
 
 Remote state is configured from [root.hcl](/home/guille/dev/platform-infra/root.hcl).
 
@@ -22,7 +22,7 @@ Terragrunt handles:
 
 Each stack root has a `terragrunt.stack.hcl`.
 
-- Platform stack: `rg`, `storage-account`, `aca-env`
+- Platform stack: `rg`, `aca-env`
 - App stack: `app`
 
 ## Ownership
@@ -32,4 +32,5 @@ Terraform remains the source of truth for:
 - shared platform resources
 - Container Apps
 - scale settings
+- ingress and probes
 - environment variables and secrets

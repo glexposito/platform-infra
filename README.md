@@ -15,7 +15,6 @@ Lean Terragrunt proof of concept for Azure platform and app infrastructure on Az
 live/
 ├── units/
 │   ├── rg/
-│   ├── storage-account/
 │   ├── aca-env/
 │   └── aca-app/
 ├── non-prod/
@@ -67,7 +66,12 @@ terragrunt run --all --non-interactive plan -- -no-color
 terragrunt run --all --non-interactive apply -- -auto-approve -no-color
 ```
 
-Workload settings such as `container_image`, scale settings, environment variables, and secrets live in each stack `terragrunt.stack.hcl`.
+Workload settings such as `container_image`, scale settings, ingress, probes, environment variables, and secrets live in each stack `terragrunt.stack.hcl`.
+
+Current app examples:
+
+- `myapp-1` uses HTTP liveness and readiness probes against the hello-world image.
+- `myapp-3` uses `nginx:stable`, external ingress, and HTTP liveness and readiness probes on port `80`.
 
 Secrets can use a direct value or a Key Vault reference:
 

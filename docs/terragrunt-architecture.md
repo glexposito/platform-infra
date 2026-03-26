@@ -12,7 +12,6 @@ The live layout is intentionally small:
 live/
 ├── units/
 │   ├── rg/
-│   ├── storage-account/
 │   ├── aca-env/
 │   └── aca-app/
 └── <environment-group>/<region>/<environment>/<stack>
@@ -23,7 +22,6 @@ live/
 `platform-noncritical` owns shared resources:
 
 - resource group
-- state storage account
 - Log Analytics workspace
 - Container Apps environment
 
@@ -33,7 +31,7 @@ Each `myapp-*` stack owns one Container App and its app-specific settings.
 
 Each stack defines a `terragrunt.stack.hcl`, which generates one or more units:
 
-- platform stack: `rg`, `storage-account`, `aca-env`
+- platform stack: `rg`, `aca-env`
 - app stack: `app`
 
 Generated units include [root.hcl](/home/guille/dev/platform-infra/root.hcl) and read `region.hcl`.
@@ -42,9 +40,10 @@ Generated units include [root.hcl](/home/guille/dev/platform-infra/root.hcl) and
 
 Platform units depend on the resource group and use `mock_outputs` so non-apply commands can still run before real state exists.
 
-App stacks can either:
+Current live app stacks pass explicit values such as:
 
-- pass `resource_group_name` and `container_app_environment_name`
-- or pass `platform_path` and consume outputs from the platform stack
-
-Current live app stacks use explicit values.
+- `resource_group_name`
+- `container_app_environment_name`
+- `container_image`
+- optional `ingress`
+- optional `liveness_probes`, `readiness_probes`, and `startup_probes`
