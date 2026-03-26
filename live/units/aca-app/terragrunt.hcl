@@ -29,6 +29,10 @@ inputs = {
   acr_id                         = try(values.acr_id, null)
   min_replicas                   = try(values.min_replicas, 1)
   max_replicas                   = try(values.max_replicas, 1)
+  ingress                        = try(values.ingress, null)
+  liveness_probes                = try(values.liveness_probes, [])
+  readiness_probes               = try(values.readiness_probes, [])
+  startup_probes                 = try(values.startup_probes, [])
   environment_variables = merge(
     {
       APP_ENV = local.environment

@@ -47,6 +47,21 @@ resource "azurerm_container_app" "this" {
     }
   }
 
+  dynamic "ingress" {
+    for_each = var.ingress == null ? [] : [var.ingress]
+    content {
+      external_enabled           = ingress.value.external_enabled
+      target_port                = ingress.value.target_port
+      transport                  = ingress.value.transport
+      allow_insecure_connections = ingress.value.allow_insecure_connections
+
+      traffic_weight {
+        latest_revision = true
+        percentage      = 100
+      }
+    }
+  }
+
   template {
     min_replicas = var.min_replicas
     max_replicas = var.max_replicas
@@ -70,6 +85,72 @@ resource "azurerm_container_app" "this" {
         content {
           name        = env.key
           secret_name = env.value.secret_name
+        }
+      }
+
+      dynamic "liveness_probe" {
+        for_each = var.liveness_probes
+        content {
+          transport               = liveness_probe.value.transport
+          port                    = liveness_probe.value.port
+          path                    = try(liveness_probe.value.path, null)
+          host                    = try(liveness_probe.value.host, null)
+          initial_delay           = try(liveness_probe.value.initial_delay, null)
+          interval_seconds        = try(liveness_probe.value.interval_seconds, null)
+          timeout                 = try(liveness_probe.value.timeout, null)
+          failure_count_threshold = try(liveness_probe.value.failure_count_threshold, null)
+
+          dynamic "header" {
+            for_each = try(liveness_probe.value.header, {})
+            content {
+              name  = header.key
+              value = header.value
+            }
+          }
+        }
+      }
+
+      dynamic "readiness_probe" {
+        for_each = var.readiness_probes
+        content {
+          transport               = readiness_probe.value.transport
+          port                    = readiness_probe.value.port
+          path                    = try(readiness_probe.value.path, null)
+          host                    = try(readiness_probe.value.host, null)
+          initial_delay           = try(readiness_probe.value.initial_delay, null)
+          interval_seconds        = try(readiness_probe.value.interval_seconds, null)
+          timeout                 = try(readiness_probe.value.timeout, null)
+          failure_count_threshold = try(readiness_probe.value.failure_count_threshold, null)
+
+          dynamic "header" {
+            for_each = try(readiness_probe.value.header, {})
+            content {
+              name  = header.key
+              value = header.value
+            }
+          }
+        }
+      }
+
+      dynamic "startup_probe" {
+        for_each = var.startup_probes
+        content {
+          transport               = startup_probe.value.transport
+          port                    = startup_probe.value.port
+          path                    = try(startup_probe.value.path, null)
+          host                    = try(startup_probe.value.host, null)
+          initial_delay           = try(startup_probe.value.initial_delay, null)
+          interval_seconds        = try(startup_probe.value.interval_seconds, null)
+          timeout                 = try(startup_probe.value.timeout, null)
+          failure_count_threshold = try(startup_probe.value.failure_count_threshold, null)
+
+          dynamic "header" {
+            for_each = try(startup_probe.value.header, {})
+            content {
+              name  = header.key
+              value = header.value
+            }
+          }
         }
       }
     }

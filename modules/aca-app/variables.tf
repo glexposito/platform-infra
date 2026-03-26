@@ -79,6 +79,65 @@ variable "revision_mode" {
   default     = "Single"
 }
 
+variable "ingress" {
+  description = "Optional ingress configuration. Leave null to keep the app private and without HTTP ingress."
+  type = object({
+    external_enabled           = bool
+    target_port                = number
+    transport                  = optional(string, "auto")
+    allow_insecure_connections = optional(bool, false)
+  })
+  default = null
+}
+
+variable "liveness_probes" {
+  description = "Optional liveness probes for the container."
+  type = list(object({
+    transport               = string
+    port                    = number
+    path                    = optional(string)
+    host                    = optional(string)
+    initial_delay           = optional(number)
+    interval_seconds        = optional(number)
+    timeout                 = optional(number)
+    failure_count_threshold = optional(number)
+    header                  = optional(map(string), {})
+  }))
+  default = []
+}
+
+variable "readiness_probes" {
+  description = "Optional readiness probes for the container."
+  type = list(object({
+    transport               = string
+    port                    = number
+    path                    = optional(string)
+    host                    = optional(string)
+    initial_delay           = optional(number)
+    interval_seconds        = optional(number)
+    timeout                 = optional(number)
+    failure_count_threshold = optional(number)
+    header                  = optional(map(string), {})
+  }))
+  default = []
+}
+
+variable "startup_probes" {
+  description = "Optional startup probes for the container."
+  type = list(object({
+    transport               = string
+    port                    = number
+    path                    = optional(string)
+    host                    = optional(string)
+    initial_delay           = optional(number)
+    interval_seconds        = optional(number)
+    timeout                 = optional(number)
+    failure_count_threshold = optional(number)
+    header                  = optional(map(string), {})
+  }))
+  default = []
+}
+
 variable "environment_variables" {
   description = "Plaintext environment variables for the container."
   type        = map(string)

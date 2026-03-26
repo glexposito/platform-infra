@@ -9,5 +9,23 @@ unit "myapp-1" {
     container_image                = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
     min_replicas                   = 1
     max_replicas                   = 1
+    liveness_probes = [
+      {
+        transport        = "HTTP"
+        port             = 8080
+        path             = "/"
+        initial_delay    = 10
+        interval_seconds = 30
+      }
+    ]
+    readiness_probes = [
+      {
+        transport        = "HTTP"
+        port             = 8080
+        path             = "/"
+        initial_delay    = 5
+        interval_seconds = 15
+      }
+    ]
   }
 }
