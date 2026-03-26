@@ -5,15 +5,12 @@ unit "myapp-2" {
   values = {
     name                = "myapp-2"
     resource_group_name = "rg-platform-noncritical-dev-weu"
-    container_image     = "nginx:stable"
+    container_image     = "mcr.microsoft.com/azuredocs/aci-helloworld:latest"
     ip_address_type     = "Public"
     dns_name_label      = "myapp-2-dev-weu"
     container_ports = [
       {
         port = 80
-      },
-      {
-        port = 8080
       }
     ]
     liveness_probe = {
