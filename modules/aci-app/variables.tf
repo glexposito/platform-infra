@@ -50,7 +50,7 @@ variable "dns_name_label" {
 variable "subnet_ids" {
   description = "Optional subnet IDs for private network integration."
   type        = list(string)
-  default     = []
+  default     = null
 }
 
 variable "containers" {

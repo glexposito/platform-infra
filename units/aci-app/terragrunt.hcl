@@ -42,7 +42,7 @@ inputs = {
   restart_policy            = try(values.restart_policy, "Always")
   ip_address_type           = try(values.ip_address_type, "None")
   dns_name_label            = try(values.dns_name_label, null)
-  subnet_ids                = try(values.subnet_ids, [])
+  subnet_ids                = try(values.subnet_ids, null)
   containers                = try(values.containers, [local.default_container])
   image_registry_credential = try(values.image_registry_credential, null)
 }
