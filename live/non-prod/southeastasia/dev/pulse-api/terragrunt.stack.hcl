@@ -3,7 +3,7 @@ unit "pulse-api" {
   path   = "app"
 
   values = {
-    name                           = "myapp-1"
+    name                           = "pulse-api"
     resource_group_name            = "rg-platform-nc-dev-sea"
     container_app_environment_name = "cae-platform-nc-dev-sea"
     container_image                = "ghcr.io/glexposito/pulse-api:latest"
