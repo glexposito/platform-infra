@@ -3,7 +3,7 @@ unit "pulse-api" {
   path   = "app"
 
   values = {
-    name                           = "pulse-api"
+    name                           = "myapp-1"
     resource_group_name            = "rg-platform-nc-dev-sea"
     container_app_environment_name = "cae-platform-nc-dev-sea"
     container_image                = "ghcr.io/glexposito/pulse-api:latest"
@@ -18,8 +18,8 @@ unit "pulse-api" {
         transport        = "HTTP"
         port             = 8080
         path             = "/live"
-        initial_delay    = 10
-        interval_seconds = 30
+        initial_delay    = 1
+        interval_seconds = 5
       }
     ]
     readiness_probes = [
@@ -27,8 +27,8 @@ unit "pulse-api" {
         transport        = "HTTP"
         port             = 8080
         path             = "/ready"
-        initial_delay    = 5
-        interval_seconds = 15
+        initial_delay    = 1
+        interval_seconds = 5
       }
     ]
   }
