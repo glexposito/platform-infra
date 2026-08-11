@@ -16,16 +16,16 @@ live/
 ├── non-prod/
 │   └── southeastasia/
 │       └── dev/
-│           ├── platform-nc/   # flat Terragrunt units, no terragrunt.stack.hcl
-│           ├── <app-stack>/   # terragrunt.stack.hcl, generated via `terragrunt stack generate`
+│           ├── platform-nc/
+│           ├── <app-stack>/
 │           └── ...
 units/
-├── aca-app/
-├── aci-app/
-└── storage-account/
+├── rg/
+├── aca-env/
+└── aca-app/
 ```
 
-Reusable Terraform modules live in `modules/`. Reusable Terragrunt wrappers live in `units/` when reused across multiple stacks; `platform-nc`'s units (`rg`, `aca-env`, `aks`, `envoy-gateway`, `envoy-gateway-config`, `argocd`, `argocd-bootstrap`) are only ever instantiated once, so they're written directly as plain Terragrunt directories under `platform-nc/` instead of going through the `units/` + Stacks indirection.
+Reusable Terraform modules live in `modules/`. Reusable Terragrunt wrappers live in `units/`.
 
 ## Naming
 
@@ -46,10 +46,11 @@ az login
 az account set --subscription "<subscription-id>"
 ```
 
-Deploy the platform stack (plain Terragrunt units, no `stack generate` step):
+Deploy the platform stack:
 
 ```bash
 cd live/non-prod/southeastasia/dev/platform-nc
+terragrunt stack generate
 terragrunt run --all --non-interactive init
 terragrunt run --all --non-interactive plan -- -no-color
 terragrunt run --all --non-interactive apply -- -auto-approve -no-color

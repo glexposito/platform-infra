@@ -97,6 +97,9 @@ jobs:
           tool_versions: |
             terragrunt ${{ env.TERRAGRUNT_VERSION }}
 
+      - name: Terragrunt stack generate
+        run: terragrunt stack generate
+
       - name: Terragrunt init
         run: terragrunt run --all --non-interactive init
 

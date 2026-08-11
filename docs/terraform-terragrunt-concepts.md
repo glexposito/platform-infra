@@ -20,7 +20,10 @@ Terragrunt handles:
 - dependency wiring
 - repeated wrappers under [units](/home/guille/dev/platform-infra/units)
 
-App stack roots have a `terragrunt.stack.hcl`, generating units from the shared `units/aca-app` template. `platform-nc` is a flat set of plain per-unit `terragrunt.hcl` files instead, since none of its units (`rg`, `aca-env`, `aks`, `envoy-gateway`, `envoy-gateway-config`, `argocd`, `argocd-bootstrap`) are reused elsewhere.
+Each stack root has a `terragrunt.stack.hcl`.
+
+- Platform stack: `rg`, `aca-env`
+- App stack: `app`
 
 ## Ownership
 
