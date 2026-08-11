@@ -5,7 +5,7 @@ The live layout is intentionally small:
 - environment group: `live/non-prod`
 - region: `southeastasia`
 - environment: `dev`
-- stack: `platform-nc`, `myapp-*`
+- stack: `platform-nc`, `pulse-api` (and future app stacks)
 - reusable units: `units/*`
 
 ```text
@@ -13,29 +13,24 @@ live/
 └── <environment-group>/<region>/<environment>/<stack>
 
 units/
-├── rg/
-├── aca-env/
-└── aca-app/
+├── aca-app/
+├── aci-app/
+└── storage-account/
 ```
 
 ## Stack Split
 
-`platform-nc` owns shared resources:
+`platform-nc` owns shared resources: resource group, Log Analytics workspace, Container Apps environment, AKS cluster, and the cluster platform stack (Envoy Gateway ingress, Argo CD).
 
-- resource group
-- Log Analytics workspace
-- Container Apps environment
-
-Each `myapp-*` stack owns one Container App and its app-specific settings.
+Each app stack (e.g. `pulse-api`) owns one Container App and its app-specific settings.
 
 ## Composition
 
-Each stack defines a `terragrunt.stack.hcl`, which generates one or more units:
+`platform-nc` is a flat set of plain Terragrunt units (`rg`, `aca-env`, `aks`, `envoy-gateway`, `envoy-gateway-config`, `argocd`, `argocd-bootstrap`), each a real directory with its own `terragrunt.hcl` — no `terragrunt.stack.hcl`, no `terragrunt stack generate` step. Every one of those units is only ever instantiated once, so there's no reuse to gain from routing them through `units/` + Stacks; sibling units reference each other directly via relative `dependency` paths (e.g. `../rg`, `../aks`).
 
-- platform stack: `rg`, `aca-env`
-- app stack: `app`
+App stacks (`pulse-api` and future ones) still use `terragrunt.stack.hcl` + `terragrunt stack generate`, since the whole point there is reusing the same `units/aca-app` template across many app stacks.
 
-Generated units include [root.hcl](/home/guille/dev/platform-infra/root.hcl) and read `region.hcl`.
+Every unit includes [root.hcl](/home/guille/dev/platform-infra/root.hcl) and reads `region.hcl`.
 
 ## Dependencies
 
