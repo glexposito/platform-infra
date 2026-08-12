@@ -22,4 +22,13 @@ resource "azurerm_container_app_environment" "this" {
   resource_group_name        = var.resource_group_name
   log_analytics_workspace_id = azurerm_log_analytics_workspace.this.id
   tags                       = local.tags
+
+  # The Consumption workload profile is always present on the environment.
+  # minimum_count/maximum_count must stay unset for Consumption profiles --
+  # the Azure API always returns 0 for them regardless of config, which
+  # otherwise causes perpetual drift on every plan.
+  workload_profile {
+    name                  = "Consumption"
+    workload_profile_type = "Consumption"
+  }
 }
