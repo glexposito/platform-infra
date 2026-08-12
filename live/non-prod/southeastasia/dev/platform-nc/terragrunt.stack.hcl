@@ -1,3 +1,13 @@
+locals {
+  mock_rg_name     = "mock-rg"
+  mock_rg_location = "southeastasia"
+
+  mock_aks_host                   = "https://mock-aks.example.com"
+  mock_aks_client_certificate     = ""
+  mock_aks_client_key             = ""
+  mock_aks_cluster_ca_certificate = ""
+}
+
 unit "rg" {
   source = "${dirname(find_in_parent_folders("root.hcl"))}/units/rg"
   path   = "rg"
@@ -7,7 +17,7 @@ unit "rg" {
   }
 }
 
-unit "aca-env" {
+unit "aca_env" {
   source = "${dirname(find_in_parent_folders("root.hcl"))}/units/aca-env"
   path   = "aca-env"
 
@@ -20,12 +30,12 @@ unit "aca-env" {
     dependency "resource_group" {
       config_path = unit.rg.path
 
-      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "output"]
+      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
       mock_outputs_merge_strategy_with_state  = "shallow"
 
       mock_outputs = {
-        resource_group_name     = "mock-rg"
-        resource_group_location = "southeastasia"
+        resource_group_name     = local.mock_rg_name
+        resource_group_location = local.mock_rg_location
       }
     }
   }
@@ -51,18 +61,18 @@ unit "aks" {
     dependency "resource_group" {
       config_path = unit.rg.path
 
-      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "output"]
+      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
       mock_outputs_merge_strategy_with_state  = "shallow"
 
       mock_outputs = {
-        resource_group_name     = "mock-rg"
-        resource_group_location = "southeastasia"
+        resource_group_name     = local.mock_rg_name
+        resource_group_location = local.mock_rg_location
       }
     }
   }
 }
 
-unit "envoy-gateway" {
+unit "envoy_gateway" {
   source = "${dirname(find_in_parent_folders("root.hcl"))}/units/envoy-gateway"
   path   = "envoy-gateway"
 
@@ -70,20 +80,20 @@ unit "envoy-gateway" {
     dependency "aks" {
       config_path = unit.aks.path
 
-      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "output"]
+      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
       mock_outputs_merge_strategy_with_state  = "shallow"
 
       mock_outputs = {
-        host                   = "https://mock-aks.example.com"
-        client_certificate     = ""
-        client_key             = ""
-        cluster_ca_certificate = ""
+        host                   = local.mock_aks_host
+        client_certificate     = local.mock_aks_client_certificate
+        client_key             = local.mock_aks_client_key
+        cluster_ca_certificate = local.mock_aks_cluster_ca_certificate
       }
     }
   }
 }
 
-unit "envoy-gateway-config" {
+unit "envoy_gateway_config" {
   source = "${dirname(find_in_parent_folders("root.hcl"))}/units/envoy-gateway-config"
   path   = "envoy-gateway-config"
 
@@ -91,21 +101,21 @@ unit "envoy-gateway-config" {
     dependency "aks" {
       config_path = unit.aks.path
 
-      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "output"]
+      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
       mock_outputs_merge_strategy_with_state  = "shallow"
 
       mock_outputs = {
-        host                   = "https://mock-aks.example.com"
-        client_certificate     = ""
-        client_key             = ""
-        cluster_ca_certificate = ""
+        host                   = local.mock_aks_host
+        client_certificate     = local.mock_aks_client_certificate
+        client_key             = local.mock_aks_client_key
+        cluster_ca_certificate = local.mock_aks_cluster_ca_certificate
       }
     }
 
     dependency "envoy_gateway" {
-      config_path = unit["envoy-gateway"].path
+      config_path = unit.envoy_gateway.path
 
-      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "output"]
+      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
       mock_outputs_merge_strategy_with_state  = "shallow"
 
       mock_outputs = {
@@ -127,20 +137,20 @@ unit "argocd" {
     dependency "aks" {
       config_path = unit.aks.path
 
-      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "output"]
+      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
       mock_outputs_merge_strategy_with_state  = "shallow"
 
       mock_outputs = {
-        host                   = "https://mock-aks.example.com"
-        client_certificate     = ""
-        client_key             = ""
-        cluster_ca_certificate = ""
+        host                   = local.mock_aks_host
+        client_certificate     = local.mock_aks_client_certificate
+        client_key             = local.mock_aks_client_key
+        cluster_ca_certificate = local.mock_aks_cluster_ca_certificate
       }
     }
   }
 }
 
-unit "argocd-bootstrap" {
+unit "argocd_bootstrap" {
   source = "${dirname(find_in_parent_folders("root.hcl"))}/units/argocd-bootstrap"
   path   = "argocd-bootstrap"
 
@@ -155,21 +165,21 @@ unit "argocd-bootstrap" {
     dependency "aks" {
       config_path = unit.aks.path
 
-      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "output"]
+      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
       mock_outputs_merge_strategy_with_state  = "shallow"
 
       mock_outputs = {
-        host                   = "https://mock-aks.example.com"
-        client_certificate     = ""
-        client_key             = ""
-        cluster_ca_certificate = ""
+        host                   = local.mock_aks_host
+        client_certificate     = local.mock_aks_client_certificate
+        client_key             = local.mock_aks_client_key
+        cluster_ca_certificate = local.mock_aks_cluster_ca_certificate
       }
     }
 
     dependency "argocd" {
       config_path = unit.argocd.path
 
-      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "output"]
+      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
       mock_outputs_merge_strategy_with_state  = "shallow"
 
       mock_outputs = {
