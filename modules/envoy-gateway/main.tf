@@ -9,7 +9,7 @@ provider "helm" {
 
 resource "helm_release" "envoy_gateway" {
   name             = "eg"
-  repository       = "oci://docker.io/envoyproxy/gateway-helm"
+  repository       = "oci://docker.io/envoyproxy"
   chart            = "gateway-helm"
   version          = var.envoy_gateway_version
   namespace        = var.namespace

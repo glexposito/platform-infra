@@ -15,18 +15,6 @@ terraform {
   source = "${dirname(find_in_parent_folders("root.hcl"))}/modules/aks-cluster"
 }
 
-dependency "resource_group" {
-  config_path = values.resource_group_path
-
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "output"]
-  mock_outputs_merge_strategy_with_state  = "shallow"
-
-  mock_outputs = {
-    resource_group_name     = "mock-rg"
-    resource_group_location = local.location
-  }
-}
-
 inputs = {
   location                  = dependency.resource_group.outputs.resource_group_location
   environment                = local.environment
