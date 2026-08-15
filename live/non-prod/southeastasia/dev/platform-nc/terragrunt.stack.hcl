@@ -53,7 +53,7 @@ unit "aks" {
     kubernetes_version = "1.36"
     default_node_pool = {
       name                 = "system"
-      vm_size              = "Standard_D2pls_v5"
+      vm_size              = "Standard_DC2s_v3"
       node_count           = 1
       orchestrator_version = "1.36"
     }

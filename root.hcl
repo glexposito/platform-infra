@@ -3,6 +3,11 @@ locals {
   state_resource_group  = local.backend_vars.locals.state_resource_group
   state_storage_account = local.backend_vars.locals.state_storage_account
   state_container       = local.backend_vars.locals.state_container
+
+  # Pins the subscription Terraform is allowed to operate against, guarding
+  # against an ambient az login/ARM_* context pointed at the wrong
+  # subscription. Left unset locally unless ARM_SUBSCRIPTION_ID is exported.
+  subscription_id = get_env("ARM_SUBSCRIPTION_ID", "")
 }
 
 terraform_version_constraint = "= 1.15.8"
@@ -13,6 +18,7 @@ generate "provider" {
   contents  = <<EOF
 provider "azurerm" {
   features {}
+  ${local.subscription_id != "" ? "subscription_id = \"${local.subscription_id}\"" : ""}
 }
 EOF
 }

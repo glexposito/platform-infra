@@ -24,10 +24,6 @@ permissions:
   contents: read
   id-token: write
 
-env:
-  TERRAFORM_VERSION: "1.15.8"
-  TERRAGRUNT_VERSION: "1.1.2"
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -57,17 +53,10 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4.0.0
-        with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-
-      - name: Setup Terragrunt
+      - name: Setup Terraform + Terragrunt
         uses: jdx/mise-action@v4.0.0
         with:
           version: 2026.3.9
-          tool_versions: |
-            terragrunt ${{ env.TERRAGRUNT_VERSION }}
 
       - name: Terragrunt stack generate
         run: terragrunt stack generate
