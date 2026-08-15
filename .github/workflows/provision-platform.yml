@@ -23,8 +23,8 @@ permissions:
   id-token: write
 
 env:
-  TERRAFORM_VERSION: "1.14.7"
-  TERRAGRUNT_VERSION: "1.0.0"
+  TERRAFORM_VERSION: "1.15.8"
+  TERRAGRUNT_VERSION: "1.1.2"
 
 jobs:
   prepare_deployment:
