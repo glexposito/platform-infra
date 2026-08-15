@@ -48,13 +48,17 @@ unit "aks" {
   path   = "aks"
 
   values = {
-    name               = "platform-nc"
-    sku_tier           = "Free"
-    kubernetes_version = "1.36"
+    name                      = "platform-nc"
+    sku_tier                  = "Free"
+    kubernetes_version        = "1.36"
+    oidc_issuer_enabled       = true
+    workload_identity_enabled = true
     default_node_pool = {
       name                 = "system"
       vm_size              = "Standard_DC2s_v3"
-      node_count           = 1
+      enable_auto_scaling  = true
+      min_count            = 1
+      max_count            = 3
       orchestrator_version = "1.36"
     }
   }
