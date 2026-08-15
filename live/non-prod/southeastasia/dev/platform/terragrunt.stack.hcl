@@ -84,6 +84,7 @@ unit "argocd" {
   path   = "argocd"
 
   values = {
+    name           = "platform"
     argocd_version = "10.3.2"
   }
 

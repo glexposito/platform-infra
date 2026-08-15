@@ -4,6 +4,15 @@ locals {
   state_storage_account = local.backend_vars.locals.state_storage_account
   state_container       = local.backend_vars.locals.state_container
 
+  # region.hcl/env.hcl feed the state key explicitly rather than deriving it
+  # from the full folder path, so reorganizing units/stacks later doesn't
+  # force a destroy-and-recreate -- only the leaf unit directory name
+  # (via basename(get_terragrunt_dir())) and these explicit values matter.
+  region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  env_vars    = read_terragrunt_config(find_in_parent_folders("env.hcl"))
+  environment = local.env_vars.locals.environment
+  location    = local.region_vars.locals.location_short
+
   # Pins the subscription Terraform is allowed to operate against, guarding
   # against an ambient az login/ARM_* context pointed at the wrong
   # subscription. Left unset locally unless ARM_SUBSCRIPTION_ID is exported.
@@ -33,6 +42,6 @@ remote_state {
     resource_group_name  = local.state_resource_group
     storage_account_name = local.state_storage_account
     container_name       = local.state_container
-    key                  = "platform/${path_relative_to_include()}/terraform.tfstate"
+    key                  = "platform/${local.environment}/${local.location}/${values.name}/${basename(get_terragrunt_dir())}/terraform.tfstate"
   }
 }
