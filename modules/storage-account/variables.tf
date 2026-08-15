@@ -13,8 +13,8 @@ variable "name" {
   type        = string
 }
 
-variable "resource_group_name" {
-  description = "Resource group name."
+variable "resource_group_id" {
+  description = "Resource group ID."
   type        = string
 }
 

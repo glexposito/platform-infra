@@ -1,14 +1,14 @@
 output "storage_account_name" {
   description = "Storage account name."
-  value       = azurerm_storage_account.this.name
+  value       = module.storage_account.name
 }
 
 output "storage_account_id" {
   description = "Storage account ID."
-  value       = azurerm_storage_account.this.id
+  value       = module.storage_account.resource_id
 }
 
 output "container_names" {
   description = "Blob container names."
-  value       = [for container in azurerm_storage_container.this : container.name]
+  value       = [for container in module.storage_account.containers : container.name]
 }

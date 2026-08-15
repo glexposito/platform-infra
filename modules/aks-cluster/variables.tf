@@ -13,8 +13,8 @@ variable "name" {
   type        = string
 }
 
-variable "resource_group_name" {
-  description = "Resource group name where the cluster is deployed."
+variable "resource_group_id" {
+  description = "Resource group ID where the cluster is deployed."
   type        = string
 }
 

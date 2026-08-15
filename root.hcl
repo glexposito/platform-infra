@@ -5,6 +5,8 @@ locals {
   state_container       = local.backend_vars.locals.state_container
 }
 
+terraform_version_constraint = "= 1.15.8"
+
 generate "provider" {
   path      = "provider.tf"
   if_exists = "overwrite_terragrunt"

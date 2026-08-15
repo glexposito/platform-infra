@@ -24,6 +24,7 @@ dependency "resource_group" {
   mock_outputs = {
     resource_group_name     = "mock-rg"
     resource_group_location = local.location
+    resource_group_id       = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg"
   }
 }
 
@@ -31,7 +32,7 @@ inputs = {
   location                 = dependency.resource_group.outputs.resource_group_location
   environment              = local.environment
   name                     = local.stack_name
-  resource_group_name      = dependency.resource_group.outputs.resource_group_name
+  resource_group_id        = dependency.resource_group.outputs.resource_group_id
   storage_account_name     = try(values.storage_account_name, "st${local.storage_name_token}${local.environment}${local.location_short}")
   account_tier             = try(values.account_tier, "Standard")
   account_replication_type = try(values.account_replication_type, "LRS")

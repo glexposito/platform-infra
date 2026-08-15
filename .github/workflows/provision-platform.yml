@@ -22,10 +22,6 @@ permissions:
   contents: read
   id-token: write
 
-env:
-  TERRAFORM_VERSION: "1.15.8"
-  TERRAGRUNT_VERSION: "1.1.2"
-
 jobs:
   prepare_deployment:
     name: Prepare Deployment
@@ -59,53 +55,11 @@ jobs:
 
   deploy:
     needs: prepare_deployment
-    runs-on: ubuntu-latest
     name: Deploy Platform (${{ needs.prepare_deployment.outputs.environment_name }})
-    environment: ${{ needs.prepare_deployment.outputs.environment_name }}
-    concurrency:
-      group: platform-deploy-${{ needs.prepare_deployment.outputs.environment_name }}
-      cancel-in-progress: false
-    defaults:
-      run:
-        shell: bash
-        working-directory: ${{ needs.prepare_deployment.outputs.working_dir }}
-    env:
-      ARM_USE_OIDC: true
-      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-
-      - name: Azure login
-        uses: azure/login@v2.3.0
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4.0.0
-        with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-
-      - name: Setup Terragrunt
-        uses: jdx/mise-action@v4.0.0
-        with:
-          version: 2026.3.9
-          tool_versions: |
-            terragrunt ${{ env.TERRAGRUNT_VERSION }}
-
-      - name: Terragrunt stack generate
-        run: terragrunt stack generate
-
-      - name: Terragrunt init
-        run: terragrunt run --all --non-interactive init
-
-      - name: Terragrunt plan
-        run: terragrunt run --all --non-interactive plan -- -no-color
-
-      - name: Terragrunt apply
-        if: inputs.command == 'apply'
-        run: terragrunt run --all --non-interactive apply -- -auto-approve -no-color
+    uses: ./.github/workflows/_terragrunt-deploy.yml
+    secrets: inherit
+    with:
+      working_dir: ${{ needs.prepare_deployment.outputs.working_dir }}
+      environment_name: ${{ needs.prepare_deployment.outputs.environment_name }}
+      command: ${{ inputs.command }}
+      concurrency_group: platform-deploy-${{ needs.prepare_deployment.outputs.environment_name }}
