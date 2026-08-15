@@ -41,7 +41,7 @@ jobs:
 
           env = os.environ["INPUT_ENVIRONMENT"]
           mapping = {
-              "dev": ("dev", "live/non-prod/southeastasia/dev/platform-nc"),
+              "dev": ("dev", "live/non-prod/southeastasia/dev/platform"),
           }
 
           if env not in mapping:

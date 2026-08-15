@@ -14,7 +14,7 @@ unit "rg" {
   path   = "rg"
 
   values = {
-    name = "platform-nc"
+    name = "platform"
   }
 }
 
@@ -23,7 +23,7 @@ unit "aca_env" {
   path   = "aca-env"
 
   values = {
-    name                             = "platform-nc"
+    name                             = "platform"
     log_analytics_retention_in_days = 30
   }
 
@@ -48,7 +48,7 @@ unit "aks" {
   path   = "aks"
 
   values = {
-    name                      = "platform-nc"
+    name                      = "platform"
     sku_tier                  = "Free"
     kubernetes_version        = "1.36"
     oidc_issuer_enabled       = true

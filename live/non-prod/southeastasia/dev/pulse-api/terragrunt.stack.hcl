@@ -4,8 +4,8 @@ unit "pulse-api" {
 
   values = {
     name                           = "pulse-api"
-    resource_group_name            = "rg-platform-nc-dev-sea"
-    container_app_environment_name = "cae-platform-nc-dev-sea"
+    resource_group_name            = "rg-platform-dev-sea"
+    container_app_environment_name = "cae-platform-dev-sea"
     container_image                = "ghcr.io/glexposito/pulse-api:latest"
     container_cpu                  = 1
     container_memory               = "2Gi"
