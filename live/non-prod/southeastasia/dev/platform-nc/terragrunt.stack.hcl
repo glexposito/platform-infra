@@ -1,6 +1,7 @@
 locals {
   mock_rg_name     = "mock-rg"
   mock_rg_location = "southeastasia"
+  mock_rg_id       = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/${local.mock_rg_name}"
 
   mock_aks_host                   = "https://mock-aks.example.com"
   mock_aks_client_certificate     = ""
@@ -36,6 +37,7 @@ unit "aca_env" {
       mock_outputs = {
         resource_group_name     = local.mock_rg_name
         resource_group_location = local.mock_rg_location
+        resource_group_id       = local.mock_rg_id
       }
     }
   }
@@ -51,7 +53,7 @@ unit "aks" {
     kubernetes_version = "1.36"
     default_node_pool = {
       name                 = "system"
-      vm_size              = "Standard_DC2s_v3"
+      vm_size              = "Standard_D2pls_v5"
       node_count           = 1
       orchestrator_version = "1.36"
     }
@@ -67,59 +69,7 @@ unit "aks" {
       mock_outputs = {
         resource_group_name     = local.mock_rg_name
         resource_group_location = local.mock_rg_location
-      }
-    }
-  }
-}
-
-unit "envoy_gateway" {
-  source = "${dirname(find_in_parent_folders("root.hcl"))}/units/envoy-gateway"
-  path   = "envoy-gateway"
-
-  autoinclude {
-    dependency "aks" {
-      config_path = unit.aks.path
-
-      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
-      mock_outputs_merge_strategy_with_state  = "shallow"
-
-      mock_outputs = {
-        host                   = local.mock_aks_host
-        client_certificate     = local.mock_aks_client_certificate
-        client_key             = local.mock_aks_client_key
-        cluster_ca_certificate = local.mock_aks_cluster_ca_certificate
-      }
-    }
-  }
-}
-
-unit "envoy_gateway_config" {
-  source = "${dirname(find_in_parent_folders("root.hcl"))}/units/envoy-gateway-config"
-  path   = "envoy-gateway-config"
-
-  autoinclude {
-    dependency "aks" {
-      config_path = unit.aks.path
-
-      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
-      mock_outputs_merge_strategy_with_state  = "shallow"
-
-      mock_outputs = {
-        host                   = local.mock_aks_host
-        client_certificate     = local.mock_aks_client_certificate
-        client_key             = local.mock_aks_client_key
-        cluster_ca_certificate = local.mock_aks_cluster_ca_certificate
-      }
-    }
-
-    dependency "envoy_gateway" {
-      config_path = unit.envoy_gateway.path
-
-      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
-      mock_outputs_merge_strategy_with_state  = "shallow"
-
-      mock_outputs = {
-        namespace = "envoy-gateway-system"
+        resource_group_id       = local.mock_rg_id
       }
     }
   }
@@ -145,45 +95,6 @@ unit "argocd" {
         client_certificate     = local.mock_aks_client_certificate
         client_key             = local.mock_aks_client_key
         cluster_ca_certificate = local.mock_aks_cluster_ca_certificate
-      }
-    }
-  }
-}
-
-unit "argocd_bootstrap" {
-  source = "${dirname(find_in_parent_folders("root.hcl"))}/units/argocd-bootstrap"
-  path   = "argocd-bootstrap"
-
-  values = {
-    # Terraform's job stops here -- once this Application exists, Argo CD
-    # owns everything under repo_path in that repo from here on.
-    repo_url  = "https://github.com/glexposito/k8s-playground.git"
-    repo_path = "argocd"
-  }
-
-  autoinclude {
-    dependency "aks" {
-      config_path = unit.aks.path
-
-      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
-      mock_outputs_merge_strategy_with_state  = "shallow"
-
-      mock_outputs = {
-        host                   = local.mock_aks_host
-        client_certificate     = local.mock_aks_client_certificate
-        client_key             = local.mock_aks_client_key
-        cluster_ca_certificate = local.mock_aks_cluster_ca_certificate
-      }
-    }
-
-    dependency "argocd" {
-      config_path = unit.argocd.path
-
-      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
-      mock_outputs_merge_strategy_with_state  = "shallow"
-
-      mock_outputs = {
-        namespace = "argocd"
       }
     }
   }
