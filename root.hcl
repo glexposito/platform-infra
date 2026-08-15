@@ -5,10 +5,21 @@ locals {
   state_container       = local.backend_vars.locals.state_container
 }
 
+terraform_version_constraint = "= 1.15.8"
+
 generate "provider" {
   path      = "provider.tf"
   if_exists = "overwrite_terragrunt"
   contents  = <<EOF
+terraform {
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.0"
+    }
+  }
+}
+
 provider "azurerm" {
   features {}
 }
