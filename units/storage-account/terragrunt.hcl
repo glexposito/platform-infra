@@ -24,6 +24,7 @@ dependency "resource_group" {
   mock_outputs = {
     resource_group_name     = "mock-rg"
     resource_group_location = local.location
+    resource_group_id       = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg"
   }
 }
 
