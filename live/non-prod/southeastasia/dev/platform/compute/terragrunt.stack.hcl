@@ -2,20 +2,6 @@ locals {
   mock_rg_name     = "mock-rg"
   mock_rg_location = "southeastasia"
   mock_rg_id       = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/${local.mock_rg_name}"
-
-  mock_aks_host                   = "https://mock-aks.example.com"
-  mock_aks_client_certificate     = ""
-  mock_aks_client_key             = ""
-  mock_aks_cluster_ca_certificate = ""
-}
-
-unit "rg" {
-  source = "${dirname(find_in_parent_folders("root.hcl"))}/units/rg"
-  path   = "rg"
-
-  values = {
-    name = "platform"
-  }
 }
 
 unit "aca_env" {
@@ -29,7 +15,7 @@ unit "aca_env" {
 
   autoinclude {
     dependency "resource_group" {
-      config_path = unit.rg.path
+      config_path = "${get_repo_root()}/live/non-prod/southeastasia/dev/platform/rg/.terragrunt-stack/rg"
 
       mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
       mock_outputs_merge_strategy_with_state  = "shallow"
@@ -65,7 +51,7 @@ unit "aks" {
 
   autoinclude {
     dependency "resource_group" {
-      config_path = unit.rg.path
+      config_path = "${get_repo_root()}/live/non-prod/southeastasia/dev/platform/rg/.terragrunt-stack/rg"
 
       mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
       mock_outputs_merge_strategy_with_state  = "shallow"
@@ -74,32 +60,6 @@ unit "aks" {
         resource_group_name     = local.mock_rg_name
         resource_group_location = local.mock_rg_location
         resource_group_id       = local.mock_rg_id
-      }
-    }
-  }
-}
-
-unit "argocd" {
-  source = "${dirname(find_in_parent_folders("root.hcl"))}/units/argocd"
-  path   = "argocd"
-
-  values = {
-    name           = "platform"
-    argocd_version = "10.3.2"
-  }
-
-  autoinclude {
-    dependency "aks" {
-      config_path = unit.aks.path
-
-      mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
-      mock_outputs_merge_strategy_with_state  = "shallow"
-
-      mock_outputs = {
-        host                   = local.mock_aks_host
-        client_certificate     = local.mock_aks_client_certificate
-        client_key             = local.mock_aks_client_key
-        cluster_ca_certificate = local.mock_aks_cluster_ca_certificate
       }
     }
   }
