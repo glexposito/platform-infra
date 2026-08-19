@@ -4,7 +4,7 @@ This repo uses GitHub OIDC with `azure/login@v2` so GitHub Actions can deploy to
 
 ## Workflows
 
-- [`.github/workflows/provision-platform.yml`](/home/guille/dev/platform-infra/.github/workflows/provision-platform.yml) runs Terragrunt for `platform-nc`
+- [`.github/workflows/provision-platform.yml`](/home/guille/dev/platform-infra/.github/workflows/provision-platform.yml) runs Terragrunt for `platform` (`rg`, `compute`, `workloads`)
 - [`.github/workflows/deploy-app.yml`](/home/guille/dev/platform-infra/.github/workflows/deploy-app.yml) runs Terragrunt for one app stack
 
 Terragrunt workflows do not reuse saved plan files. Each `apply` recalculates from the stack.
