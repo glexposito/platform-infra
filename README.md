@@ -122,6 +122,18 @@ queue_scale = {
 
 The storage account is expected in the app's resource group. Add `storage_account_resource_group_name` when it lives elsewhere. `queue_length` is the target number of messages per replica. The rule can scale the app to the configured `max_replicas`; set `min_replicas = 0` to scale to zero when the queue is empty. Keep a replica running or configure an HTTP scale rule if the same app must also wake for public HTTP traffic.
 
+For an Azure Service Bus Queue, use the separate `service_bus_queue_scale` setting. The module looks up the namespace, configures the `azure-servicebus` rule, and grants the app identity `Azure Service Bus Data Receiver` on that queue:
+
+```hcl
+service_bus_queue_scale = {
+  namespace_name = "sb-pulsedevsea"
+  queue_name     = "pulse-work"
+  message_count  = 5
+}
+```
+
+The Service Bus namespace is expected in the app's resource group. Add `namespace_resource_group_name` when it lives elsewhere.
+
 Secrets can use a direct value or a Key Vault reference:
 
 ```hcl

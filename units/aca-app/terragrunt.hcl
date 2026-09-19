@@ -32,6 +32,7 @@ inputs = {
   min_replicas                   = try(values.min_replicas, 0)
   max_replicas                   = try(values.max_replicas, 1)
   queue_scale                    = try(values.queue_scale, null)
+  service_bus_queue_scale        = try(values.service_bus_queue_scale, null)
   ingress                        = try(values.ingress, null)
   liveness_probes                = try(values.liveness_probes, [])
   readiness_probes               = try(values.readiness_probes, [])

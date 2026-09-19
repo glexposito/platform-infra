@@ -13,6 +13,10 @@ locals {
     var.queue_scale.storage_account_resource_group_name,
     var.resource_group_name
   )
+  service_bus_namespace_resource_group_name = var.service_bus_queue_scale == null ? null : coalesce(
+    var.service_bus_queue_scale.namespace_resource_group_name,
+    var.resource_group_name
+  )
 }
 
 data "azurerm_container_app_environment" "existing" {
@@ -27,6 +31,13 @@ data "azurerm_storage_account" "queue_scale" {
 
   name                = var.queue_scale.storage_account_name
   resource_group_name = local.queue_storage_account_resource_group_name
+}
+
+data "azurerm_servicebus_namespace" "service_bus_queue_scale" {
+  count = var.service_bus_queue_scale == null ? 0 : 1
+
+  name                = var.service_bus_queue_scale.namespace_name
+  resource_group_name = local.service_bus_namespace_resource_group_name
 }
 
 module "container_app" {
@@ -83,6 +94,20 @@ module "container_app" {
         account_name   = var.queue_scale.storage_account_name
         queue_name     = var.queue_scale.queue_name
         queue_length   = var.queue_scale.queue_length
+        identity       = "system"
+        authentication = []
+      }
+    ]
+
+    custom_scale_rules = var.service_bus_queue_scale == null ? null : [
+      {
+        name             = var.service_bus_queue_scale.rule_name
+        custom_rule_type = "azure-servicebus"
+        metadata = {
+          namespace    = var.service_bus_queue_scale.namespace_name
+          queueName    = var.service_bus_queue_scale.queue_name
+          messageCount = tostring(var.service_bus_queue_scale.message_count)
+        }
         identity       = "system"
         authentication = []
       }
@@ -164,5 +189,13 @@ resource "azurerm_role_assignment" "storage_queue_data_message_processor" {
   count                = var.queue_scale == null ? 0 : 1
   scope                = data.azurerm_storage_account.queue_scale[0].id
   role_definition_name = "Storage Queue Data Message Processor"
+  principal_id         = module.container_app.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "service_bus_queue_data_receiver" {
+  count = var.service_bus_queue_scale == null ? 0 : 1
+
+  scope                = "${data.azurerm_servicebus_namespace.service_bus_queue_scale[0].id}/queues/${var.service_bus_queue_scale.queue_name}"
+  role_definition_name = "Azure Service Bus Data Receiver"
   principal_id         = module.container_app.identity[0].principal_id
 }

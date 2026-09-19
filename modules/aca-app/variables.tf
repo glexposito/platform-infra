@@ -90,6 +90,23 @@ variable "queue_scale" {
   }
 }
 
+variable "service_bus_queue_scale" {
+  description = "Optional Azure Service Bus Queue scale rule. The app's system-assigned identity receives the Data Receiver role on the named queue."
+  type = object({
+    namespace_name                = string
+    namespace_resource_group_name = optional(string)
+    queue_name                    = string
+    message_count                 = optional(number, 1)
+    rule_name                     = optional(string, "azure-servicebus")
+  })
+  default = null
+
+  validation {
+    condition     = var.service_bus_queue_scale == null || var.service_bus_queue_scale.message_count > 0
+    error_message = "service_bus_queue_scale.message_count must be greater than zero."
+  }
+}
+
 variable "revision_mode" {
   description = "Container App revision mode."
   type        = string
