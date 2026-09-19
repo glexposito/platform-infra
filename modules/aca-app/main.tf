@@ -18,142 +18,109 @@ data "azurerm_container_app_environment" "existing" {
   resource_group_name = var.resource_group_name
 }
 
-resource "azurerm_container_app" "this" {
-  name                         = var.container_app_name
-  container_app_environment_id = local.resolved_container_app_environment_id
-  resource_group_name          = var.resource_group_name
-  revision_mode                = var.revision_mode
-  tags                         = local.tags
+module "container_app" {
+  source  = "Azure/avm-res-app-containerapp/azurerm"
+  version = "~> 0.9.0"
 
-  identity {
-    type = "SystemAssigned"
+  name                                  = var.container_app_name
+  resource_group_name                   = var.resource_group_name
+  container_app_environment_resource_id = local.resolved_container_app_environment_id
+  revision_mode                         = var.revision_mode
+  tags                                  = local.tags
+
+  managed_identities = {
+    system_assigned = true
   }
 
-  dynamic "registry" {
-    for_each = var.registry_server == null ? [] : [var.registry_server]
-    content {
-      server   = registry.value
+  registries = var.registry_server == null ? null : [
+    {
+      server   = var.registry_server
       identity = "System"
     }
-  }
+  ]
 
-  dynamic "secret" {
-    for_each = nonsensitive(var.secret_environment_variables)
-    content {
-      name                = secret.value.secret_name
-      value               = try(secret.value.secret_value, null)
-      key_vault_secret_id = try(secret.value.key_vault_secret_id, null)
-      identity            = try(secret.value.key_vault_secret_id, null) == null ? null : "System"
+  secrets = {
+    for key, secret in nonsensitive(var.secret_environment_variables) : key => {
+      name                = secret.secret_name
+      value               = try(secret.secret_value, null)
+      key_vault_secret_id = try(secret.key_vault_secret_id, null)
+      identity            = try(secret.key_vault_secret_id, null) == null ? null : "System"
     }
   }
 
-  dynamic "ingress" {
-    for_each = var.ingress == null ? [] : [var.ingress]
-    content {
-      external_enabled           = ingress.value.external_enabled
-      target_port                = ingress.value.target_port
-      transport                  = ingress.value.transport
-      allow_insecure_connections = ingress.value.allow_insecure_connections
+  ingress = var.ingress == null ? null : {
+    external_enabled           = var.ingress.external_enabled
+    target_port                = var.ingress.target_port
+    transport                  = var.ingress.transport
+    allow_insecure_connections = var.ingress.allow_insecure_connections
 
-      traffic_weight {
+    traffic_weight = [
+      {
         latest_revision = true
         percentage      = 100
       }
-    }
+    ]
   }
 
-  template {
+  template = {
     min_replicas = var.min_replicas
     max_replicas = var.max_replicas
 
-    container {
-      name   = var.container_name
-      image  = var.container_image
-      cpu    = var.container_cpu
-      memory = var.container_memory
+    containers = [
+      {
+        name   = var.container_name
+        image  = var.container_image
+        cpu    = var.container_cpu
+        memory = var.container_memory
 
-      dynamic "env" {
-        for_each = var.environment_variables
-        content {
-          name  = env.key
-          value = env.value
-        }
-      }
+        env = concat(
+          [for name, value in var.environment_variables : { name = name, value = value }],
+          [for name, secret in nonsensitive(var.secret_environment_variables) : { name = name, secret_name = secret.secret_name }]
+        )
 
-      dynamic "env" {
-        for_each = nonsensitive(var.secret_environment_variables)
-        content {
-          name        = env.key
-          secret_name = env.value.secret_name
-        }
-      }
-
-      dynamic "liveness_probe" {
-        for_each = var.liveness_probes
-        content {
-          transport               = liveness_probe.value.transport
-          port                    = liveness_probe.value.port
-          path                    = try(liveness_probe.value.path, null)
-          host                    = try(liveness_probe.value.host, null)
-          initial_delay           = try(liveness_probe.value.initial_delay, null)
-          interval_seconds        = try(liveness_probe.value.interval_seconds, null)
-          timeout                 = try(liveness_probe.value.timeout, null)
-          failure_count_threshold = try(liveness_probe.value.failure_count_threshold, null)
-
-          dynamic "header" {
-            for_each = try(liveness_probe.value.header, {})
-            content {
-              name  = header.key
-              value = header.value
-            }
+        liveness_probes = [
+          for probe in var.liveness_probes : {
+            transport               = probe.transport
+            port                    = probe.port
+            path                    = probe.path
+            host                    = probe.host
+            initial_delay           = probe.initial_delay
+            interval_seconds        = probe.interval_seconds
+            timeout                 = probe.timeout
+            failure_count_threshold = probe.failure_count_threshold
+            header                  = [for name, value in probe.header : { name = name, value = value }]
           }
-        }
-      }
+        ]
 
-      dynamic "readiness_probe" {
-        for_each = var.readiness_probes
-        content {
-          transport               = readiness_probe.value.transport
-          port                    = readiness_probe.value.port
-          path                    = try(readiness_probe.value.path, null)
-          host                    = try(readiness_probe.value.host, null)
-          initial_delay           = try(readiness_probe.value.initial_delay, null)
-          interval_seconds        = try(readiness_probe.value.interval_seconds, null)
-          timeout                 = try(readiness_probe.value.timeout, null)
-          failure_count_threshold = try(readiness_probe.value.failure_count_threshold, null)
-
-          dynamic "header" {
-            for_each = try(readiness_probe.value.header, {})
-            content {
-              name  = header.key
-              value = header.value
-            }
+        readiness_probes = [
+          for probe in var.readiness_probes : {
+            transport               = probe.transport
+            port                    = probe.port
+            path                    = probe.path
+            host                    = probe.host
+            initial_delay           = probe.initial_delay
+            interval_seconds        = probe.interval_seconds
+            timeout                 = probe.timeout
+            failure_count_threshold = probe.failure_count_threshold
+            header                  = [for name, value in probe.header : { name = name, value = value }]
           }
-        }
-      }
+        ]
 
-      dynamic "startup_probe" {
-        for_each = var.startup_probes
-        content {
-          transport               = startup_probe.value.transport
-          port                    = startup_probe.value.port
-          path                    = try(startup_probe.value.path, null)
-          host                    = try(startup_probe.value.host, null)
-          initial_delay           = try(startup_probe.value.initial_delay, null)
-          interval_seconds        = try(startup_probe.value.interval_seconds, null)
-          timeout                 = try(startup_probe.value.timeout, null)
-          failure_count_threshold = try(startup_probe.value.failure_count_threshold, null)
-
-          dynamic "header" {
-            for_each = try(startup_probe.value.header, {})
-            content {
-              name  = header.key
-              value = header.value
-            }
+        startup_probes = [
+          for probe in var.startup_probes : {
+            transport               = probe.transport
+            port                    = probe.port
+            path                    = probe.path
+            host                    = probe.host
+            initial_delay           = probe.initial_delay
+            interval_seconds        = probe.interval_seconds
+            timeout                 = probe.timeout
+            failure_count_threshold = probe.failure_count_threshold
+            header                  = [for name, value in probe.header : { name = name, value = value }]
           }
-        }
+        ]
       }
-    }
+    ]
   }
 }
 
@@ -161,5 +128,5 @@ resource "azurerm_role_assignment" "acr_pull" {
   count                = var.acr_id == null ? 0 : 1
   scope                = var.acr_id
   role_definition_name = "AcrPull"
-  principal_id         = azurerm_container_app.this.identity[0].principal_id
+  principal_id         = try(module.container_app.identity.principal_id, null)
 }
