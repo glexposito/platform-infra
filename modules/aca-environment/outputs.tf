@@ -10,5 +10,5 @@ output "resource_group_location" {
 
 output "container_app_environment_id" {
   description = "Azure Container Apps environment ID."
-  value       = azurerm_container_app_environment.this.id
+  value       = module.container_app_environment.resource_id
 }
