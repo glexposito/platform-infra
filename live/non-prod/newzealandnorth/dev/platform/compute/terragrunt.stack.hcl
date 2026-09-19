@@ -11,6 +11,9 @@ unit "aca_env" {
   values = {
     name                             = "platform"
     log_analytics_retention_in_days = 30
+    tags = {
+      team = "core"
+    }
   }
 
   autoinclude {
