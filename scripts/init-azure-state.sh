@@ -20,7 +20,7 @@ Optional environment variables:
 
 Example:
   export AZURE_SUBSCRIPTION_ID="0521a568-1fab-426a-ba4f-573ef36bdc32"
-  export STATE_SA="acainfratfstate01"
+  export STATE_SA="glexpositotfstate01"
   ./scripts/init-azure-state.sh
 EOF
 }
