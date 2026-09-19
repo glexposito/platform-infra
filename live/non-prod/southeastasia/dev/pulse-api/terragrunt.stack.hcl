@@ -8,5 +8,8 @@ stack "pulse-api" {
     tags = {
       team = "core"
     }
+    environment_variables = {
+      TEST_MESSAGE = "hello from southeastasia"
+    }
   }
 }

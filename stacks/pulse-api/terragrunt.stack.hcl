@@ -24,6 +24,8 @@ unit "pulse-api" {
     container_cpu                  = try(values.container_cpu, 0.25)
     container_memory               = try(values.container_memory, "0.5Gi")
     tags                           = try(values.tags, {})
+    environment_variables          = try(values.environment_variables, {})
+    secret_environment_variables   = try(values.secret_environment_variables, {})
     min_replicas                   = 0
     max_replicas                   = 1
     ingress = {
