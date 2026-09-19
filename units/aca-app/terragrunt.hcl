@@ -42,4 +42,5 @@ inputs = {
     try(values.environment_variables, {})
   )
   secret_environment_variables = try(values.secret_environment_variables, {})
+  tags                         = try(values.tags, {})
 }

@@ -23,6 +23,7 @@ unit "pulse-api" {
     container_image                = "ghcr.io/glexposito/pulse-api:latest"
     container_cpu                  = try(values.container_cpu, 0.25)
     container_memory               = try(values.container_memory, "0.5Gi")
+    tags                           = try(values.tags, {})
     min_replicas                   = 0
     max_replicas                   = 1
     ingress = {

@@ -5,5 +5,8 @@ stack "pulse-api" {
   values = {
     container_cpu    = 0.5
     container_memory = "1Gi"
+    tags = {
+      team = "core"
+    }
   }
 }
