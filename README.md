@@ -110,6 +110,18 @@ terragrunt run --all --non-interactive apply -- -auto-approve -no-color
 
 Workload settings such as `container_image`, scale settings, ingress, probes, environment variables, and secrets live in each stack `terragrunt.stack.hcl`.
 
+An app can scale from an Azure Storage Queue without storing an account key. The Container App module already creates a system-assigned managed identity; setting `queue_scale` configures an Azure Queue scale rule that uses that identity and grants it the `Storage Queue Data Reader` and `Storage Queue Data Message Processor` roles on the storage account:
+
+```hcl
+queue_scale = {
+  storage_account_name = "stpulsedevsea"
+  queue_name           = "pulse-work"
+  queue_length         = 5
+}
+```
+
+The storage account is expected in the app's resource group. Add `storage_account_resource_group_name` when it lives elsewhere. `queue_length` is the target number of messages per replica. The rule can scale the app to the configured `max_replicas`; set `min_replicas = 0` to scale to zero when the queue is empty. Keep a replica running or configure an HTTP scale rule if the same app must also wake for public HTTP traffic.
+
 Secrets can use a direct value or a Key Vault reference:
 
 ```hcl

@@ -9,6 +9,10 @@ locals {
     var.container_app_environment_id,
     data.azurerm_container_app_environment.existing[0].id
   )
+  queue_storage_account_resource_group_name = var.queue_scale == null ? null : coalesce(
+    var.queue_scale.storage_account_resource_group_name,
+    var.resource_group_name
+  )
 }
 
 data "azurerm_container_app_environment" "existing" {
@@ -16,6 +20,13 @@ data "azurerm_container_app_environment" "existing" {
 
   name                = var.container_app_environment_name
   resource_group_name = var.resource_group_name
+}
+
+data "azurerm_storage_account" "queue_scale" {
+  count = var.queue_scale == null ? 0 : 1
+
+  name                = var.queue_scale.storage_account_name
+  resource_group_name = local.queue_storage_account_resource_group_name
 }
 
 module "container_app" {
@@ -65,6 +76,17 @@ module "container_app" {
   template = {
     min_replicas = var.min_replicas
     max_replicas = var.max_replicas
+
+    azure_queue_scale_rules = var.queue_scale == null ? null : [
+      {
+        name           = var.queue_scale.rule_name
+        account_name   = var.queue_scale.storage_account_name
+        queue_name     = var.queue_scale.queue_name
+        queue_length   = var.queue_scale.queue_length
+        identity       = "system"
+        authentication = []
+      }
+    ]
 
     containers = [
       {
@@ -128,5 +150,19 @@ resource "azurerm_role_assignment" "acr_pull" {
   count                = var.acr_id == null ? 0 : 1
   scope                = var.acr_id
   role_definition_name = "AcrPull"
-  principal_id         = try(module.container_app.identity.principal_id, null)
+  principal_id         = module.container_app.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "storage_queue_data_reader" {
+  count                = var.queue_scale == null ? 0 : 1
+  scope                = data.azurerm_storage_account.queue_scale[0].id
+  role_definition_name = "Storage Queue Data Reader"
+  principal_id         = module.container_app.identity[0].principal_id
+}
+
+resource "azurerm_role_assignment" "storage_queue_data_message_processor" {
+  count                = var.queue_scale == null ? 0 : 1
+  scope                = data.azurerm_storage_account.queue_scale[0].id
+  role_definition_name = "Storage Queue Data Message Processor"
+  principal_id         = module.container_app.identity[0].principal_id
 }

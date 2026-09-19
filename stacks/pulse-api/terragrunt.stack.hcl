@@ -26,8 +26,9 @@ unit "pulse-api" {
     tags                           = try(values.tags, {})
     environment_variables          = try(values.environment_variables, {})
     secret_environment_variables   = try(values.secret_environment_variables, {})
-    min_replicas                   = 0
-    max_replicas                   = 1
+    min_replicas                   = try(values.min_replicas, 0)
+    max_replicas                   = try(values.max_replicas, 1)
+    queue_scale                    = try(values.queue_scale, null)
     ingress = {
       external_enabled = true
       target_port      = 8080
