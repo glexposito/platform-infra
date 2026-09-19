@@ -116,7 +116,7 @@ Then run the commands above.
 
 The [live stack](../live/non-prod/southeastasia/dev/pulse-api/terragrunt.stack.hcl)
 uses the [shared Pulse API stack](../stacks/pulse-api/terragrunt.stack.hcl) and
-overrides CPU and memory to `0.5` and `1Gi`. Replica limits are `0` to `1`.
+overrides CPU and memory to `0.5` and `1Gi`. Replica limits are `0` to `2`.
 
 ## 4. Check the app and state
 
@@ -144,7 +144,124 @@ platform/dev/southeastasia/pulse-api/app/terraform.tfstate
 `terragrunt stack generate` generates configuration files. The state blobs track
 the deployed resources and are managed by Terraform.
 
-## 5. Clean up after testing
+## 5. Ideas: avoid repeating 50 workers per environment
+
+These are ideas only. Nothing here is implemented or tested, and the example code
+has not been run. Check it with `terragrunt stack generate` before relying on it.
+
+### Unit and stack
+
+- A **unit** is one thing that gets deployed, with its own state. Here,
+  `units/aca-app` is a unit: it deploys one container app.
+- A **stack** is a collection of units. `stacks/pulse-api` is a stack that holds
+  one unit. A stack file can hold as many `unit` blocks as you want.
+- The **live** folder picks a stack and gives it values for that environment.
+
+```text
+live file  ->  stack  ->  unit(s)  ->  Terraform module
+```
+
+The block type follows the `source` folder: a folder with `terragrunt.hcl` is a
+unit (`unit` block), a folder with `terragrunt.stack.hcl` is a stack (`stack`
+block). Terragrunt's docs describe the same model, including nested stacks.
+
+### Situation
+
+50 workers that are identical except for the queue name, deployed in dev and
+prod. Copying the 50 blocks into every environment means every change is many
+edits.
+
+### Plan: one stack with 50 units, written once
+
+```text
+stacks/workers/      ONE stack: 50 unit blocks, one per queue, shared settings in locals
+live/dev/workers/    tiny file: "use stacks/workers" + dev values
+live/prod/workers/   tiny file: "use stacks/workers" + prod values
+```
+
+`stacks/workers/terragrunt.stack.hcl` (written once):
+
+```hcl
+locals {
+  common = {
+    resource_group_name = "rg-platform-${local.environment}-${local.location_short}"
+    container_image     = "ghcr.io/glexposito/pulse-api:latest"
+    container_cpu       = try(values.container_cpu, 0.25)
+    max_replicas        = try(values.max_replicas, 1)
+    # ingress, probes, ...
+  }
+}
+
+unit "worker-orders" {
+  source = "${dirname(find_in_parent_folders("root.hcl"))}/units/aca-app"
+  path   = "worker-orders"
+
+  values = merge(
+    local.common,
+    {
+      name        = "worker-orders"
+      queue_scale = { queue_name = "orders", storage_account_name = values.storage_account_name }
+    },
+    try(values.orders, {})   # overrides for this worker only, empty if none
+  )
+}
+
+# ...one unit block per worker
+```
+
+`live/prod/.../workers/terragrunt.stack.hcl` (one per environment):
+
+```hcl
+stack "workers" {
+  source = "${dirname(find_in_parent_folders("root.hcl"))}/stacks/workers"
+  path   = "workers"
+
+  values = {
+    storage_account_name = "stprodqueues01"
+    max_replicas         = 10        # default for all workers
+
+    orders = {                       # only worker-orders
+      max_replicas = 30
+      queue_scale = {                # replaces the whole queue_scale
+        storage_account_name = "stprodqueues01"
+        queue_name           = "orders"
+        queue_length         = 20
+      }
+    }
+  }
+}
+```
+
+### How overriding works
+
+Later maps win in `merge`, so a worker gets its values in this order:
+
+1. `local.common`: defaults for every worker (the live file can change these for
+   all workers with `try(values.x, default)`).
+2. The unit's own values: its name and queue.
+3. `try(values.orders, {})`: what the live file sets for this worker only.
+
+`merge` is shallow: setting `queue_scale` for a worker replaces the whole object,
+so give it every field. That is fine here.
+
+### Things to know
+
+- Each unit needs a unique label and a unique `path`. The `path` is the
+  generated folder and part of the state key.
+- Terragrunt has no loop for `unit` blocks (not in the docs), so the 50 blocks are
+  written out. If that is too much, generate `stacks/workers` from a list of
+  queue names with a script.
+- Each unit needs the `aca-env` dependency (`autoinclude`). Repeat it per unit or
+  build it once in a local. Not tested whether `autoinclude` can share a local.
+- Override keys in the live file must be plain identifiers (`orders`, not
+  `worker-orders`).
+- If a single-worker template is needed elsewhere, `stacks/worker` (one unit)
+  can be nested inside a stack with a `stack` block. Nested stacks are supported.
+- Container app names must be unique and at most 32 characters.
+- Try 2 or 3 workers first. Run `terragrunt stack generate` and check the
+  generated paths and values before writing all 50.
+
+## 6. Clean up after testing
 
 Go into the same folder you deployed from and run:
 
