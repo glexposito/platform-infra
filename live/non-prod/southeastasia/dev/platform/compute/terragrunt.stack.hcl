@@ -12,7 +12,8 @@ unit "aca_env" {
     name                             = "platform"
     log_analytics_retention_in_days = 30
     tags = {
-      team = "core"
+      team    = "core"
+      purpose = "poc"
     }
   }
 

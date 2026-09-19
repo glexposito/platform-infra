@@ -91,7 +91,7 @@ terragrunt run --all plan
 Read the plan. If it looks right, apply it:
 
 ```sh
-terragrunt run --all apply
+terragrunt run --all --non-interactive apply
 ```
 
 ### First deploy: platform first, then Pulse API

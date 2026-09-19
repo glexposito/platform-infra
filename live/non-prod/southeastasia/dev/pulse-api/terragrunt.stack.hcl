@@ -6,7 +6,8 @@ stack "pulse-api" {
     container_cpu    = 0.5
     container_memory = "1Gi"
     tags = {
-      team = "core"
+      team    = "core"
+      purpose = "poc"
     }
     environment_variables = {
       TEST_MESSAGE = "hello from southeastasia"
