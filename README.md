@@ -170,6 +170,5 @@ Recommended setup:
 ## Docs
 
 - [Testing Terragrunt in Azure](docs/testing-terragrunt.md)
-- [Terraform and Terragrunt](docs/terraform-terragrunt-concepts.md)
 - [Terragrunt Layout](docs/terragrunt-architecture.md)
 - [Azure and GitHub Actions](docs/azure-github-actions-setup.md)
