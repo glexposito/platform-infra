@@ -34,6 +34,12 @@ variable "log_analytics_retention_in_days" {
   default     = 30
 }
 
+variable "log_analytics_daily_quota_gb" {
+  description = "Daily ingestion cap in GB for the Log Analytics workspace. Resets every day; 0.1 is about 3 GB per month."
+  type        = number
+  default     = 0.1
+}
+
 variable "tags" {
   description = "Resource tags."
   type        = map(string)

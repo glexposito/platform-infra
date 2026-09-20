@@ -4,7 +4,7 @@ include "root" {
 
 locals {
   env_vars       = read_terragrunt_config(find_in_parent_folders("env.hcl"))
-  region_vars    = read_terragrunt_config("${get_terragrunt_dir()}/../../../../region.hcl")
+  region_vars    = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   app_name       = values.name
   environment    = try(values.environment, local.env_vars.locals.environment)
   location       = local.region_vars.locals.location
@@ -29,8 +29,10 @@ inputs = {
   container_memory               = try(values.container_memory, "0.5Gi")
   registry_server                = try(values.registry_server, null)
   acr_id                         = try(values.acr_id, null)
-  min_replicas                   = try(values.min_replicas, 1)
+  min_replicas                   = try(values.min_replicas, 0)
   max_replicas                   = try(values.max_replicas, 1)
+  queue_scale                    = try(values.queue_scale, null)
+  service_bus_queue_scale        = try(values.service_bus_queue_scale, null)
   ingress                        = try(values.ingress, null)
   liveness_probes                = try(values.liveness_probes, [])
   readiness_probes               = try(values.readiness_probes, [])
@@ -42,4 +44,5 @@ inputs = {
     try(values.environment_variables, {})
   )
   secret_environment_variables = try(values.secret_environment_variables, {})
+  tags                         = try(values.tags, {})
 }

@@ -1,37 +1,23 @@
-unit "pulse-api" {
-  source = "${dirname(find_in_parent_folders("root.hcl"))}/units/aca-app"
+stack "pulse-api" {
+  source = "${dirname(find_in_parent_folders("root.hcl"))}/stacks/pulse-api"
   path   = "app"
 
   values = {
-    name                           = "pulse-api"
-    resource_group_name            = "rg-platform-dev-sea"
-    container_app_environment_name = "cae-platform-dev-sea"
-    container_image                = "ghcr.io/glexposito/pulse-api:latest"
-    container_cpu                  = 1
-    container_memory               = "2Gi"
-    min_replicas                   = 0
-    max_replicas                   = 1
-    ingress = {
-      external_enabled = true
-      target_port      = 8080
+    container_cpu    = 0.5
+    container_memory = "1Gi"
+    max_replicas     = 2
+    queue_scale = {
+      storage_account_name                = "glexpositotfstate01"
+      storage_account_resource_group_name = "rg-aca-terraform-state"
+      queue_name                          = "pulse-work"
+      queue_length                        = 5
     }
-    liveness_probes = [
-      {
-        transport        = "HTTP"
-        port             = 8080
-        path             = "/live"
-        initial_delay    = 10
-        interval_seconds = 30
-      }
-    ]
-    readiness_probes = [
-      {
-        transport        = "HTTP"
-        port             = 8080
-        path             = "/ready"
-        initial_delay    = 5
-        interval_seconds = 10
-      }
-    ]
+    tags = {
+      team    = "core"
+      purpose = "poc"
+    }
+    environment_variables = {
+      TEST_MESSAGE = "hello from southeastasia"
+    }
   }
 }

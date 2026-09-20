@@ -23,4 +23,6 @@ inputs = {
   container_app_environment_name  = try(values.container_app_environment_name, "cae-${local.stack_name}-${local.environment}-${local.location_short}")
   log_analytics_workspace_name    = try(values.log_analytics_workspace_name, "law-${local.stack_name}-${local.environment}-${local.location_short}")
   log_analytics_retention_in_days = try(values.log_analytics_retention_in_days, 30)
+  log_analytics_daily_quota_gb    = try(values.log_analytics_daily_quota_gb, 0.1)
+  tags                            = try(values.tags, {})
 }

@@ -73,6 +73,40 @@ variable "max_replicas" {
   default     = 1
 }
 
+variable "queue_scale" {
+  description = "Optional Azure Storage Queue scale rule. The app's system-assigned identity receives the Reader and Message Processor roles on the named storage account."
+  type = object({
+    storage_account_name                = string
+    storage_account_resource_group_name = optional(string)
+    queue_name                          = string
+    queue_length                        = optional(number, 1)
+    rule_name                           = optional(string, "azure-queue")
+  })
+  default = null
+
+  validation {
+    condition     = var.queue_scale == null || var.queue_scale.queue_length > 0
+    error_message = "queue_scale.queue_length must be greater than zero."
+  }
+}
+
+variable "service_bus_queue_scale" {
+  description = "Optional Azure Service Bus Queue scale rule. The app's system-assigned identity receives the Data Receiver role on the named queue."
+  type = object({
+    namespace_name                = string
+    namespace_resource_group_name = optional(string)
+    queue_name                    = string
+    message_count                 = optional(number, 1)
+    rule_name                     = optional(string, "azure-servicebus")
+  })
+  default = null
+
+  validation {
+    condition     = var.service_bus_queue_scale == null || var.service_bus_queue_scale.message_count > 0
+    error_message = "service_bus_queue_scale.message_count must be greater than zero."
+  }
+}
+
 variable "revision_mode" {
   description = "Container App revision mode."
   type        = string
