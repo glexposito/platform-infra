@@ -78,6 +78,31 @@ stack's `stack.hcl` (state key) and every `terragrunt.stack.hcl` under it
 that sets `values.name` (resource naming) — or the state key and the
 resource names will drift apart.
 
+### Why `stack.hcl` and `values` are kept separate
+
+They answer different questions:
+
+| | `stack.hcl` | `values` |
+| --- | --- | --- |
+| Question | Where does the state live? | What gets deployed? |
+| Set by | the platform | the team |
+| Used for | the state key in `root.hcl` | resource config in the unit |
+
+Keeping them apart means the state layout is a platform decision and is not
+mixed into what a team edits, so a team cannot point its state at another
+team's path by changing app values. It also means renaming a resource for
+cosmetic reasons does not move state.
+
+The cost is one small file per stack folder, plus keeping its `name` in sync with
+`values.name` by hand.
+
+Alternative, not tried: each unit could set its own state key from `values`
+(a `remote_state` block in `units/*/terragrunt.hcl`). That would remove
+`stack.hcl` and the duplication, but every unit would repeat the key logic, the
+state layout would be set by whoever writes the live values, and it is not
+confirmed that a unit can override the `remote_state` from `root.hcl`. If the
+per-stack file becomes a burden, test that override first.
+
 ## Dependencies
 
 Cross-stack dependencies are wired via `autoinclude { dependency ... }` blocks in `terragrunt.stack.hcl`, each with `mock_outputs` so `init`/`validate`/`plan` can run before the real state exists:
