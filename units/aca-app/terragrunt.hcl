@@ -29,6 +29,7 @@ inputs = {
   container_memory               = try(values.container_memory, "0.5Gi")
   registry_server                = try(values.registry_server, null)
   acr_id                         = try(values.acr_id, null)
+  role_assignments               = try(values.role_assignments, {})
   min_replicas                   = try(values.min_replicas, 0)
   max_replicas                   = try(values.max_replicas, 1)
   queue_scale                    = try(values.queue_scale, null)

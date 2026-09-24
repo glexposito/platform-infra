@@ -18,6 +18,7 @@ locals {
     max_replicas                   = try(values.max_replicas, 1)
     tags                           = try(values.tags, {})
     environment_variables          = try(values.environment_variables, {})
+    role_assignments               = try(values.role_assignments, {})
   }
 }
 

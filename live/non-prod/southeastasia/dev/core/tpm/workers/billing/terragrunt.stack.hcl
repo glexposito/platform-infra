@@ -14,6 +14,14 @@ stack "billing" {
       team = "core"
     }
 
+    # Azure RBAC roles for each worker's managed identity, keyed by a stable name.
+    # role_assignments = {
+    #   secrets = {
+    #     scope = "/subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<kv>"
+    #     role  = "Key Vault Secrets User"
+    #   }
+    # }
+
     # Per-worker overrides. Each value replaces the shared one above for that worker.
     workers = {
       "billing-invoices" = {

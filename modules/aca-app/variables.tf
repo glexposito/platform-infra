@@ -212,6 +212,15 @@ variable "acr_id" {
   default     = null
 }
 
+variable "role_assignments" {
+  description = "Azure RBAC roles to grant the app's managed identity, keyed by a stable name. scope is the target resource ID; role is a built-in role name, for example \"Key Vault Secrets User\"."
+  type = map(object({
+    scope = string
+    role  = string
+  }))
+  default = {}
+}
+
 variable "tags" {
   description = "Resource tags."
   type        = map(string)

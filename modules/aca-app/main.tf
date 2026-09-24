@@ -199,3 +199,11 @@ resource "azurerm_role_assignment" "service_bus_queue_data_receiver" {
   role_definition_name = "Azure Service Bus Data Receiver"
   principal_id         = module.container_app.identity[0].principal_id
 }
+
+resource "azurerm_role_assignment" "this" {
+  for_each = var.role_assignments
+
+  scope                = each.value.scope
+  role_definition_name = each.value.role
+  principal_id         = module.container_app.identity[0].principal_id
+}
