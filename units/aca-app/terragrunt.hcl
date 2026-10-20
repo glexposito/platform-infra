@@ -12,17 +12,19 @@ locals {
 }
 
 terraform {
-  source = "${dirname(find_in_parent_folders("root.hcl"))}/modules/aca-app"
+  # Double slash: Terragrunt copies all of modules/ so aca-app can call ../managed-identity.
+  source = "${dirname(find_in_parent_folders("root.hcl"))}/modules//aca-app"
 }
 
 inputs = {
   container_app_environment_id   = try(values.container_app_environment_id, null)
   container_app_environment_name = try(values.container_app_environment_name, null)
-  resource_group_name            = values.resource_group_name
+  resource_group_name            = try(values.resource_group_name, null)
   location                       = local.location
   environment                    = local.environment
   name                           = local.app_name
   container_app_name             = try(values.container_app_name, "ca-${local.app_name}-${local.environment}-${local.location_short}")
+  identity_name                  = try(values.identity_name, "id-${local.app_name}-${local.environment}-${local.location_short}")
   container_name                 = local.app_name
   container_image                = values.container_image
   container_cpu                  = try(values.container_cpu, 0.25)

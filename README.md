@@ -56,6 +56,7 @@ Every resource name is built from the same four pieces: `<resource-prefix>-<name
 | Log Analytics workspace | `law` | `law-platform-dev-sea` |
 | Storage account | `st` | `stplatformdevsea` (no hyphens — storage account names must be lowercase alphanumeric only) |
 | Container App | `ca` | `ca-pulse-api-dev-sea` |
+| User-assigned managed identity | `id` | `id-pulse-api-dev-sea` |
 
 Current shared stack token: `platform`
 Current region short code: `sea`
@@ -110,7 +111,7 @@ terragrunt run --all --non-interactive apply -- -auto-approve -no-color
 
 Workload settings such as `container_image`, scale settings, ingress, probes, environment variables, and secrets live in each stack `terragrunt.stack.hcl`.
 
-An app can scale from an Azure Storage Queue without storing an account key. The Container App module already creates a system-assigned managed identity; setting `queue_scale` configures an Azure Queue scale rule that uses that identity and grants it the `Storage Queue Data Reader` and `Storage Queue Data Message Processor` roles on the storage account:
+An app can scale from an Azure Storage Queue without storing an account key. Every Container App gets its own user-assigned managed identity (see [Managed identity and access](#managed-identity-and-access)); setting `queue_scale` configures an Azure Queue scale rule that uses that identity and grants it the `Storage Queue Data Reader` and `Storage Queue Data Message Processor` roles on the storage account:
 
 ```hcl
 queue_scale = {
@@ -122,7 +123,7 @@ queue_scale = {
 
 The storage account is expected in the app's resource group. Add `storage_account_resource_group_name` when it lives elsewhere. `queue_length` is the target number of messages per replica. The rule can scale the app to the configured `max_replicas`; set `min_replicas = 0` to scale to zero when the queue is empty. Keep a replica running or configure an HTTP scale rule if the same app must also wake for public HTTP traffic.
 
-For an Azure Service Bus Queue, use the separate `service_bus_queue_scale` setting. The module looks up the namespace, configures the `azure-servicebus` rule, and grants the app identity `Azure Service Bus Data Receiver` on that queue:
+For an Azure Service Bus Queue, use the separate `service_bus_queue_scale` setting. The module configures the `azure-servicebus` rule, and grants the app identity `Azure Service Bus Data Receiver` on that queue:
 
 ```hcl
 service_bus_queue_scale = {
@@ -133,6 +134,49 @@ service_bus_queue_scale = {
 ```
 
 The Service Bus namespace is expected in the app's resource group. Add `namespace_resource_group_name` when it lives elsewhere.
+
+### Managed identity and access
+
+Each Container App gets its own user-assigned managed identity (`id-<name>-<environment>-<location>`), created by [`modules/managed-identity`](modules/managed-identity). `aca-app` calls that module internally, and future app modules (App Service, Functions, ...) should do the same, so the identity and grant logic lives in one place. The identity, and every role assignment, is created before the app, so the first revision starts with its access already in place. `AZURE_CLIENT_ID` is set on the container so `DefaultAzureCredential` picks the identity.
+
+Grant access from the stack values with one `role_assignments` map. Point at resources by name; `resource_group_name` defaults to the app's resource group and `subscription_id` to the provider's subscription, so set them only for resources that live elsewhere:
+
+```hcl
+role_assignments = {
+  secrets = {
+    type = "key_vault"            # acr, cosmos, key_vault, managed_redis, service_bus, storage_account, or e.g. "Microsoft.Sql/servers"
+    name = "kv-billing-dev-sea"
+    role = "Key Vault Secrets User"
+  }
+  jobs = {
+    type                = "service_bus"
+    name                = "sb-billing-dev-sea"
+    resource_group_name = "rg-billing-dev-sea"
+    subscription_id     = "<sub-id>"      # optional, only for resources in another subscription
+    child               = "queues/jobs"   # optional, narrows the grant below the resource
+    role                = "Azure Service Bus Data Sender"
+  }
+  orders = {
+    type  = "cosmos"
+    name  = "cosmos-orders-dev-sea"
+    child = "dbs/orders"                      # optional; "dbs/orders/colls/<container>" narrows further
+    role  = "Cosmos DB Built-in Data Reader"
+  }
+  cache = {
+    type = "managed_redis"
+    name = "amr-orders-dev-sea"
+    role = "Managed Redis Data Access"         # full data access via the cache's default access policy
+  }
+}
+```
+
+Most services use Azure RBAC. Cosmos DB (NoSQL) data access uses its own role system instead: `Cosmos DB Built-in Data Reader`, `Cosmos DB Built-in Data Contributor`, or a custom `sqlRoleDefinitions` ID is granted as a Cosmos data-plane role assignment, while any other role on a Cosmos account (for example `Cosmos DB Account Reader Role`) is a normal Azure RBAC assignment.
+
+Azure Managed Redis works the same way: `Managed Redis Data Access` becomes an access policy assignment on the cache, which grants the default (full) access policy, and any other role on the cache is a normal Azure RBAC assignment. Clients connect with the identity's principal (object) ID as the Redis user name and an Entra token as the password. The classic Azure Cache for Redis tiers are not supported because they are being retired.
+
+When the target is created by another unit in this repo, pass its ID from a Terragrunt `dependency` instead of `type` and `name`, for example `scope = dependency.kv.outputs.key_vault_id`. Resources in another subscription must be in the same Entra tenant, and the deploying principal needs permission to create role assignments there.
+
+Azure SQL access is not covered: database users for an Entra identity are created with T-SQL (`CREATE USER [...] FROM EXTERNAL PROVIDER`), not with Azure RBAC.
 
 Secrets can use a direct value or a Key Vault reference:
 
@@ -145,10 +189,12 @@ secret_environment_variables = {
 
   EXAMPLE_KEY_VAULT = {
     secret_name         = "example-key-vault"
-    key_vault_secret_id = "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<vault>/secrets/<secret>"
+    key_vault_secret_id = "https://<vault>.vault.azure.net/secrets/<secret>"
   }
 }
 ```
+
+`key_vault_secret_id` is the secret's URI (optionally with a version), not its ARM resource ID. The app's identity reads it, so also grant `Key Vault Secrets User` on the vault through `role_assignments`.
 
 ## GitHub Actions
 

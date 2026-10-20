@@ -5,17 +5,44 @@ locals {
     managed_by  = "terraform"
   }
   tags = merge(var.tags, local.default_tags)
-  resolved_container_app_environment_id = coalesce(
-    var.container_app_environment_id,
-    data.azurerm_container_app_environment.existing[0].id
+  resolved_container_app_environment_id = (
+    var.container_app_environment_id != null
+    ? var.container_app_environment_id
+    : data.azurerm_container_app_environment.existing[0].id
   )
-  queue_storage_account_resource_group_name = var.queue_scale == null ? null : coalesce(
-    var.queue_scale.storage_account_resource_group_name,
-    var.resource_group_name
-  )
-  service_bus_namespace_resource_group_name = var.service_bus_queue_scale == null ? null : coalesce(
-    var.service_bus_queue_scale.namespace_resource_group_name,
-    var.resource_group_name
+
+  # Grants implied by the app's own features, merged with the caller's role_assignments.
+  # A null resource_group_name falls back to the app's resource group.
+  feature_role_assignments = merge(
+    var.acr_id == null ? {} : {
+      acr_pull = {
+        scope = var.acr_id
+        role  = "AcrPull"
+      }
+    },
+    var.queue_scale == null ? {} : {
+      storage_queue_data_reader = {
+        type                = "storage_account"
+        name                = var.queue_scale.storage_account_name
+        resource_group_name = var.queue_scale.storage_account_resource_group_name
+        role                = "Storage Queue Data Reader"
+      }
+      storage_queue_data_message_processor = {
+        type                = "storage_account"
+        name                = var.queue_scale.storage_account_name
+        resource_group_name = var.queue_scale.storage_account_resource_group_name
+        role                = "Storage Queue Data Message Processor"
+      }
+    },
+    var.service_bus_queue_scale == null ? {} : {
+      service_bus_queue_data_receiver = {
+        type                = "service_bus"
+        name                = var.service_bus_queue_scale.namespace_name
+        resource_group_name = var.service_bus_queue_scale.namespace_resource_group_name
+        child               = "queues/${var.service_bus_queue_scale.queue_name}"
+        role                = "Azure Service Bus Data Receiver"
+      }
+    },
   )
 }
 
@@ -26,184 +53,198 @@ data "azurerm_container_app_environment" "existing" {
   resource_group_name = var.resource_group_name
 }
 
-data "azurerm_storage_account" "queue_scale" {
-  count = var.queue_scale == null ? 0 : 1
+module "identity" {
+  source = "../managed-identity"
 
-  name                = var.queue_scale.storage_account_name
-  resource_group_name = local.queue_storage_account_resource_group_name
+  name                = var.identity_name
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  role_assignments    = merge(local.feature_role_assignments, var.role_assignments)
+  tags                = local.tags
 }
 
-data "azurerm_servicebus_namespace" "service_bus_queue_scale" {
-  count = var.service_bus_queue_scale == null ? 0 : 1
+# Plain azurerm rather than the AVM container app module: the AVM module always
+# looks the resource group up by name during plan, so a stack that creates the
+# resource group and the app together could not plan before its first apply.
+resource "azurerm_container_app" "this" {
+  name                         = var.container_app_name
+  resource_group_name          = var.resource_group_name
+  container_app_environment_id = local.resolved_container_app_environment_id
+  revision_mode                = var.revision_mode
+  tags                         = local.tags
 
-  name                = var.service_bus_queue_scale.namespace_name
-  resource_group_name = local.service_bus_namespace_resource_group_name
-}
-
-module "container_app" {
-  source  = "Azure/avm-res-app-containerapp/azurerm"
-  version = "~> 0.9.0"
-
-  name                                  = var.container_app_name
-  resource_group_name                   = var.resource_group_name
-  container_app_environment_resource_id = local.resolved_container_app_environment_id
-  revision_mode                         = var.revision_mode
-  tags                                  = local.tags
-
-  managed_identities = {
-    system_assigned = true
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [module.identity.id]
   }
 
-  registries = var.registry_server == null ? null : [
-    {
-      server   = var.registry_server
-      identity = "System"
-    }
-  ]
+  dynamic "registry" {
+    for_each = var.registry_server == null ? [] : [var.registry_server]
 
-  secrets = {
-    for key, secret in nonsensitive(var.secret_environment_variables) : key => {
-      name                = secret.secret_name
-      value               = try(secret.secret_value, null)
-      key_vault_secret_id = try(secret.key_vault_secret_id, null)
-      identity            = try(secret.key_vault_secret_id, null) == null ? null : "System"
+    content {
+      server   = registry.value
+      identity = module.identity.id
     }
   }
 
-  ingress = var.ingress == null ? null : {
-    external_enabled           = var.ingress.external_enabled
-    target_port                = var.ingress.target_port
-    transport                  = var.ingress.transport
-    allow_insecure_connections = var.ingress.allow_insecure_connections
+  dynamic "secret" {
+    for_each = nonsensitive(var.secret_environment_variables)
 
-    traffic_weight = [
-      {
+    content {
+      name                = secret.value.secret_name
+      value               = secret.value.secret_value
+      key_vault_secret_id = secret.value.key_vault_secret_id
+      identity            = secret.value.key_vault_secret_id == null ? null : module.identity.id
+    }
+  }
+
+  dynamic "ingress" {
+    for_each = var.ingress == null ? [] : [var.ingress]
+
+    content {
+      external_enabled           = ingress.value.external_enabled
+      target_port                = ingress.value.target_port
+      transport                  = ingress.value.transport
+      allow_insecure_connections = ingress.value.allow_insecure_connections
+
+      traffic_weight {
         latest_revision = true
         percentage      = 100
       }
-    ]
+    }
   }
 
-  template = {
+  template {
     min_replicas = var.min_replicas
     max_replicas = var.max_replicas
 
-    azure_queue_scale_rules = var.queue_scale == null ? null : [
-      {
-        name           = var.queue_scale.rule_name
-        account_name   = var.queue_scale.storage_account_name
-        queue_name     = var.queue_scale.queue_name
-        queue_length   = var.queue_scale.queue_length
-        identity       = "system"
-        authentication = []
-      }
-    ]
+    # azurerm's azure_queue_scale_rule only supports secret authentication, so
+    # the identity-based queue scaler is declared as a custom azure-queue rule.
+    dynamic "custom_scale_rule" {
+      for_each = var.queue_scale == null ? [] : [var.queue_scale]
 
-    custom_scale_rules = var.service_bus_queue_scale == null ? null : [
-      {
-        name             = var.service_bus_queue_scale.rule_name
-        custom_rule_type = "azure-servicebus"
+      content {
+        name             = custom_scale_rule.value.rule_name
+        custom_rule_type = "azure-queue"
+        identity_id      = module.identity.id
         metadata = {
-          namespace    = var.service_bus_queue_scale.namespace_name
-          queueName    = var.service_bus_queue_scale.queue_name
-          messageCount = tostring(var.service_bus_queue_scale.message_count)
+          accountName = custom_scale_rule.value.storage_account_name
+          queueName   = custom_scale_rule.value.queue_name
+          queueLength = tostring(custom_scale_rule.value.queue_length)
         }
-        identity       = "system"
-        authentication = []
       }
-    ]
+    }
 
-    containers = [
-      {
-        name   = var.container_name
-        image  = var.container_image
-        cpu    = var.container_cpu
-        memory = var.container_memory
+    dynamic "custom_scale_rule" {
+      for_each = var.service_bus_queue_scale == null ? [] : [var.service_bus_queue_scale]
 
-        env = concat(
-          [for name, value in var.environment_variables : { name = name, value = value }],
-          [for name, secret in nonsensitive(var.secret_environment_variables) : { name = name, secret_name = secret.secret_name }]
-        )
-
-        liveness_probes = [
-          for probe in var.liveness_probes : {
-            transport               = probe.transport
-            port                    = probe.port
-            path                    = probe.path
-            host                    = probe.host
-            initial_delay           = probe.initial_delay
-            interval_seconds        = probe.interval_seconds
-            timeout                 = probe.timeout
-            failure_count_threshold = probe.failure_count_threshold
-            header                  = [for name, value in probe.header : { name = name, value = value }]
-          }
-        ]
-
-        readiness_probes = [
-          for probe in var.readiness_probes : {
-            transport               = probe.transport
-            port                    = probe.port
-            path                    = probe.path
-            host                    = probe.host
-            initial_delay           = probe.initial_delay
-            interval_seconds        = probe.interval_seconds
-            timeout                 = probe.timeout
-            failure_count_threshold = probe.failure_count_threshold
-            header                  = [for name, value in probe.header : { name = name, value = value }]
-          }
-        ]
-
-        startup_probes = [
-          for probe in var.startup_probes : {
-            transport               = probe.transport
-            port                    = probe.port
-            path                    = probe.path
-            host                    = probe.host
-            initial_delay           = probe.initial_delay
-            interval_seconds        = probe.interval_seconds
-            timeout                 = probe.timeout
-            failure_count_threshold = probe.failure_count_threshold
-            header                  = [for name, value in probe.header : { name = name, value = value }]
-          }
-        ]
+      content {
+        name             = custom_scale_rule.value.rule_name
+        custom_rule_type = "azure-servicebus"
+        identity_id      = module.identity.id
+        metadata = {
+          namespace    = custom_scale_rule.value.namespace_name
+          queueName    = custom_scale_rule.value.queue_name
+          messageCount = tostring(custom_scale_rule.value.message_count)
+        }
       }
-    ]
+    }
+
+    container {
+      name   = var.container_name
+      image  = var.container_image
+      cpu    = var.container_cpu
+      memory = var.container_memory
+
+      dynamic "env" {
+        for_each = merge({ AZURE_CLIENT_ID = module.identity.client_id }, var.environment_variables)
+
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+
+      dynamic "env" {
+        for_each = nonsensitive(var.secret_environment_variables)
+
+        content {
+          name        = env.key
+          secret_name = env.value.secret_name
+        }
+      }
+
+      dynamic "liveness_probe" {
+        for_each = var.liveness_probes
+
+        content {
+          transport               = liveness_probe.value.transport
+          port                    = liveness_probe.value.port
+          path                    = liveness_probe.value.path
+          host                    = liveness_probe.value.host
+          initial_delay           = liveness_probe.value.initial_delay
+          interval_seconds        = liveness_probe.value.interval_seconds
+          timeout                 = liveness_probe.value.timeout
+          failure_count_threshold = liveness_probe.value.failure_count_threshold
+
+          dynamic "header" {
+            for_each = liveness_probe.value.header
+
+            content {
+              name  = header.key
+              value = header.value
+            }
+          }
+        }
+      }
+
+      dynamic "readiness_probe" {
+        for_each = var.readiness_probes
+
+        content {
+          transport               = readiness_probe.value.transport
+          port                    = readiness_probe.value.port
+          path                    = readiness_probe.value.path
+          host                    = readiness_probe.value.host
+          initial_delay           = readiness_probe.value.initial_delay
+          interval_seconds        = readiness_probe.value.interval_seconds
+          timeout                 = readiness_probe.value.timeout
+          failure_count_threshold = readiness_probe.value.failure_count_threshold
+
+          dynamic "header" {
+            for_each = readiness_probe.value.header
+
+            content {
+              name  = header.key
+              value = header.value
+            }
+          }
+        }
+      }
+
+      dynamic "startup_probe" {
+        for_each = var.startup_probes
+
+        content {
+          transport               = startup_probe.value.transport
+          port                    = startup_probe.value.port
+          path                    = startup_probe.value.path
+          host                    = startup_probe.value.host
+          initial_delay           = startup_probe.value.initial_delay
+          interval_seconds        = startup_probe.value.interval_seconds
+          timeout                 = startup_probe.value.timeout
+          failure_count_threshold = startup_probe.value.failure_count_threshold
+
+          dynamic "header" {
+            for_each = startup_probe.value.header
+
+            content {
+              name  = header.key
+              value = header.value
+            }
+          }
+        }
+      }
+    }
   }
-}
-
-resource "azurerm_role_assignment" "acr_pull" {
-  count                = var.acr_id == null ? 0 : 1
-  scope                = var.acr_id
-  role_definition_name = "AcrPull"
-  principal_id         = module.container_app.identity[0].principal_id
-}
-
-resource "azurerm_role_assignment" "storage_queue_data_reader" {
-  count                = var.queue_scale == null ? 0 : 1
-  scope                = data.azurerm_storage_account.queue_scale[0].id
-  role_definition_name = "Storage Queue Data Reader"
-  principal_id         = module.container_app.identity[0].principal_id
-}
-
-resource "azurerm_role_assignment" "storage_queue_data_message_processor" {
-  count                = var.queue_scale == null ? 0 : 1
-  scope                = data.azurerm_storage_account.queue_scale[0].id
-  role_definition_name = "Storage Queue Data Message Processor"
-  principal_id         = module.container_app.identity[0].principal_id
-}
-
-resource "azurerm_role_assignment" "service_bus_queue_data_receiver" {
-  count = var.service_bus_queue_scale == null ? 0 : 1
-
-  scope                = "${data.azurerm_servicebus_namespace.service_bus_queue_scale[0].id}/queues/${var.service_bus_queue_scale.queue_name}"
-  role_definition_name = "Azure Service Bus Data Receiver"
-  principal_id         = module.container_app.identity[0].principal_id
-}
-
-resource "azurerm_role_assignment" "this" {
-  for_each = var.role_assignments
-
-  scope                = each.value.scope
-  role_definition_name = each.value.role
-  principal_id         = module.container_app.identity[0].principal_id
 }

@@ -13,6 +13,11 @@ variable "resource_group_name" {
   type        = string
 }
 
+variable "location" {
+  description = "Azure region for resources created alongside the app, such as its managed identity."
+  type        = string
+}
+
 variable "container_app_environment_id" {
   description = "The ID of the Container App Environment to deploy into."
   type        = string
@@ -35,6 +40,11 @@ variable "container_app_environment_name" {
 
 variable "container_app_name" {
   description = "Azure Container App name."
+  type        = string
+}
+
+variable "identity_name" {
+  description = "Name of the user-assigned managed identity created for the app."
   type        = string
 }
 
@@ -74,7 +84,7 @@ variable "max_replicas" {
 }
 
 variable "queue_scale" {
-  description = "Optional Azure Storage Queue scale rule. The app's system-assigned identity receives the Reader and Message Processor roles on the named storage account."
+  description = "Optional Azure Storage Queue scale rule. The app's managed identity receives the Reader and Message Processor roles on the named storage account."
   type = object({
     storage_account_name                = string
     storage_account_resource_group_name = optional(string)
@@ -91,7 +101,7 @@ variable "queue_scale" {
 }
 
 variable "service_bus_queue_scale" {
-  description = "Optional Azure Service Bus Queue scale rule. The app's system-assigned identity receives the Data Receiver role on the named queue."
+  description = "Optional Azure Service Bus Queue scale rule. The app's managed identity receives the Data Receiver role on the named queue."
   type = object({
     namespace_name                = string
     namespace_resource_group_name = optional(string)
@@ -213,10 +223,15 @@ variable "acr_id" {
 }
 
 variable "role_assignments" {
-  description = "Azure RBAC roles to grant the app's managed identity, keyed by a stable name. scope is the target resource ID; role is a built-in role name, for example \"Key Vault Secrets User\"."
+  description = "Roles to grant the app's managed identity, keyed by a stable name. Target by type + name (+ resource_group_name, subscription_id, child) or by scope; Cosmos DB data-plane roles are supported too. See modules/managed-identity for the fields."
   type = map(object({
-    scope = string
-    role  = string
+    role                = string
+    type                = optional(string)
+    name                = optional(string)
+    resource_group_name = optional(string)
+    subscription_id     = optional(string)
+    child               = optional(string)
+    scope               = optional(string)
   }))
   default = {}
 }
