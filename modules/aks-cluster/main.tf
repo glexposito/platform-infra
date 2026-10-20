@@ -11,12 +11,15 @@ module "aks" {
   source  = "Azure/avm-res-containerservice-managedcluster/azurerm"
   version = "~> 0.8.1"
 
-  name                = var.cluster_name
-  parent_id           = var.resource_group_id
-  location            = var.location
-  dns_prefix          = coalesce(var.dns_prefix, var.cluster_name)
-  kubernetes_version  = var.kubernetes_version
-  tags                = local.tags
+  # AVM modules send usage telemetry to Microsoft unless disabled.
+  enable_telemetry = false
+
+  name               = var.cluster_name
+  parent_id          = var.resource_group_id
+  location           = var.location
+  dns_prefix         = coalesce(var.dns_prefix, var.cluster_name)
+  kubernetes_version = var.kubernetes_version
+  tags               = local.tags
 
   managed_identities = {
     system_assigned = true
