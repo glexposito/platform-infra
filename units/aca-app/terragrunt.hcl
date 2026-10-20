@@ -23,6 +23,7 @@ inputs = {
   location                       = local.location
   environment                    = local.environment
   name                           = local.app_name
+  workload_profile_name          = try(values.workload_profile_name, "Consumption")
   container_app_name             = try(values.container_app_name, "ca-${local.app_name}-${local.environment}-${local.location_short}")
   identity_name                  = try(values.identity_name, "id-${local.app_name}-${local.environment}-${local.location_short}")
   container_name                 = local.app_name

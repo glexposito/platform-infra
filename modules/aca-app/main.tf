@@ -13,6 +13,7 @@ locals {
 
   # Grants implied by the app's own features, merged with the caller's role_assignments.
   # A null resource_group_name falls back to the app's resource group.
+  # TODO: This block can be deleted, managed identity is now generic.
   feature_role_assignments = merge(
     var.acr_id == null ? {} : {
       acr_pull = {
@@ -71,6 +72,7 @@ resource "azurerm_container_app" "this" {
   resource_group_name          = var.resource_group_name
   container_app_environment_id = local.resolved_container_app_environment_id
   revision_mode                = var.revision_mode
+  workload_profile_name        = var.workload_profile_name
   tags                         = local.tags
 
   identity {

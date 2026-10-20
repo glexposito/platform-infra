@@ -38,6 +38,12 @@ variable "container_app_environment_name" {
   }
 }
 
+variable "workload_profile_name" {
+  description = "Workload profile to run the app on. Environments from modules/aca-environment always have a \"Consumption\" profile, and Azure assigns it when this is unset, so leaving it null causes a perpetual diff. Set null only for consumption-only environments without workload profiles."
+  type        = string
+  default     = "Consumption"
+}
+
 variable "container_app_name" {
   description = "Azure Container App name."
   type        = string
