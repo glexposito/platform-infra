@@ -10,6 +10,10 @@ locals {
 module "log_analytics_workspace" {
   source  = "Azure/avm-res-operationalinsights-workspace/azurerm"
   version = "~> 0.5.1"
+  count   = var.log_analytics_enabled ? 1 : 0
+
+  # AVM modules send usage telemetry to Microsoft unless disabled.
+  enable_telemetry = false
 
   name                                      = var.log_analytics_workspace_name
   location                                  = var.location
@@ -21,11 +25,14 @@ module "log_analytics_workspace" {
 }
 
 resource "azurerm_container_app_environment" "this" {
-  name                       = var.container_app_environment_name
-  location                   = var.location
-  resource_group_name        = var.resource_group_name
-  log_analytics_workspace_id = module.log_analytics_workspace.resource_id
-  tags                       = local.tags
+  name                = var.container_app_environment_name
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  tags                = local.tags
+
+  # Without a workspace, logs are only streamed (az containerapp logs show), not stored.
+  logs_destination           = var.log_analytics_enabled ? "log-analytics" : null
+  log_analytics_workspace_id = var.log_analytics_enabled ? module.log_analytics_workspace[0].resource_id : null
 
   # The Consumption workload profile is always present on the environment.
   # minimum_count/maximum_count must stay unset for Consumption profiles --
@@ -51,5 +58,11 @@ removed {
 
 moved {
   from = azurerm_log_analytics_workspace.this
-  to   = module.log_analytics_workspace.azurerm_log_analytics_workspace.this
+  to   = module.log_analytics_workspace[0].azurerm_log_analytics_workspace.this
+}
+
+# The workspace module gained count for log_analytics_enabled.
+moved {
+  from = module.log_analytics_workspace
+  to   = module.log_analytics_workspace[0]
 }

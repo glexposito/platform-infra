@@ -23,6 +23,12 @@ variable "container_app_environment_name" {
   type        = string
 }
 
+variable "log_analytics_enabled" {
+  description = "Create a Log Analytics workspace and send the environment's logs to it. When false, logs are only streamed live and not stored."
+  type        = bool
+  default     = true
+}
+
 variable "log_analytics_workspace_name" {
   description = "Log Analytics workspace name."
   type        = string
